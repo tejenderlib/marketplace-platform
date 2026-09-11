@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     postgres_user: str
     postgres_password: SecretStr = Field(min_length=1)
 
+    jwt_secret: SecretStr = Field(min_length=32)
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = Field(default=15, gt=0)
+    jwt_refresh_token_expire_days: int = Field(default=30, gt=0)
+    auction_checkout_window_hours: int = Field(default=48, gt=0)
+
     @property
     def database_url(self) -> str:
         """Build a safely encoded SQLAlchemy URL from independent settings."""

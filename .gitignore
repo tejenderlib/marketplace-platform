@@ -17,6 +17,7 @@ venv/
 # JavaScript
 node_modules/
 dist/
+dist.bak/
 .vite/
 npm-debug.log*
 

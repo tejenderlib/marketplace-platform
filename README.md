@@ -51,6 +51,22 @@ docker compose exec api alembic revision --autogenerate -m "describe_change"
 docker compose exec api alembic check
 ```
 
+## Local development admin account
+
+Development provisioning only — never use this in production.
+
+Create (or upgrade) a local admin account interactively. The command prompts
+for the admin email and a hidden password; it never prints credentials:
+
+```bash
+docker compose exec api python -m app.scripts.create_admin
+```
+
+If the account does not exist it is created with the ADMIN role (existing
+roles are never removed when upgrading an existing account). Afterwards,
+sign in through the marketplace login page at `http://localhost:5173/#/login`
+and open the admin panel at `http://localhost:5173/#/admin`.
+
 ## Project layout
 
 ```text

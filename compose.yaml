@@ -30,6 +30,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-30}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
@@ -66,6 +70,18 @@ services:
       timeout: 5s
       retries: 6
       start_period: 10s
+
+  # LOCAL DEVELOPMENT ONLY: database viewer. Not for production.
+  # Log in with System=PostgreSQL, Server=postgres, and the POSTGRES_*
+  # credentials from .env (the password is entered in the browser, never stored here).
+  adminer:
+    image: adminer:latest
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
