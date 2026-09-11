@@ -108,7 +108,7 @@ def main():
                            token=seller_tok)
     assert status == 201, (status, listing)
     lid = listing["id"]
-    call("PATCH", f"/catalog/listings/{lid}", {"status": "ACTIVE"}, token=seller_tok)
+    call("PATCH", f"/catalog/listings/{lid}", {"status": "ACTIVE"}, token=admin_tok)
     status, img = call("POST", f"/catalog/listings/{lid}/images",
                        {"storage_key": f"admin/{tag}/chair.jpg", "content_type": "image/jpeg",
                         "byte_size": 42000, "is_primary": True},
@@ -217,7 +217,7 @@ def main():
                             token=seller_tok)
     assert status == 201, (status, alisting)
     alid = alisting["id"]
-    call("PATCH", f"/catalog/listings/{alid}", {"status": "ACTIVE"}, token=seller_tok)
+    call("PATCH", f"/catalog/listings/{alid}", {"status": "ACTIVE"}, token=admin_tok)
     from datetime import datetime, timedelta, timezone
     now = datetime.now(timezone.utc)
     status, auc = call("POST", "/auctions",

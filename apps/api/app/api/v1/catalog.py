@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.catalog.dependencies import (
     get_listing_or_404,
+    is_admin,
     require_listing_owner_or_admin,
 )
 from app.catalog.models import (
@@ -43,6 +44,7 @@ from app.catalog.schemas import (
     FavoriteOut,
     ImageCreate,
     ImageOut,
+    ImageUpdate,
     ListingCreate,
     ListingOut,
     ListingUpdate,
@@ -164,6 +166,34 @@ def _serialize_many(
     ]
 
 
+# Seller-safe status transitions. Everything else is system (RESERVED/SOLD/
+# EXPIRED), moderation (PENDING_REVIEW/REMOVED), or ADMIN-controlled.
+_SELLER_TRANSITIONS: dict[ListingStatus, set[ListingStatus]] = {
+    ListingStatus.DRAFT: {ListingStatus.PENDING_REVIEW, ListingStatus.ARCHIVED},
+    ListingStatus.REJECTED: {ListingStatus.DRAFT},
+    ListingStatus.ACTIVE: {ListingStatus.ARCHIVED},
+}
+
+
+def _apply_seller_status(
+    listing: Listing, target: ListingStatus, *, is_admin: bool
+) -> None:
+    """Enforce the lifecycle map for non-admin owners (422 on violation)."""
+
+    if is_admin:
+        listing.status = target
+        return
+    if target == listing.status:
+        return
+    allowed = _SELLER_TRANSITIONS.get(listing.status, set())
+    if target not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Transition {listing.status.value} -> {target.value} is not allowed for sellers.",
+        )
+    listing.status = target
+
+
 def _check_price_rules(
     sale_type: ListingSaleType,
     fixed_price_minor: int | None,
@@ -233,6 +263,42 @@ def list_listings(
         filters.append(
             or_(Listing.title.ilike(pattern), Listing.description.ilike(pattern))
         )
+
+    total = db.scalar(select(func.count()).select_from(Listing).where(*filters)) or 0
+    rows = list(
+        db.scalars(
+            select(Listing)
+            .where(*filters)
+            .options(selectinload(Listing.category), selectinload(Listing.images))
+            .order_by(Listing.created_at.desc(), Listing.id.desc())
+            .limit(limit)
+            .offset(offset)
+        ).all()
+    )
+    return PaginatedListings(
+        items=_serialize_many(db, rows), total=total, limit=limit, offset=offset
+    )
+
+
+@router.get("/listings/mine", response_model=PaginatedListings)
+def my_listings(
+    listing_status: str | None = Query(default=None, alias="status"),
+    sale_type: str | None = None,
+    limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(require_authenticated_user),
+    db: Session = Depends(get_db_session),
+) -> PaginatedListings:
+    """Authenticated seller's own listings (all statuses, drafts included)."""
+
+    sale_type_enum = _parse_sale_type(sale_type)
+    status_enum = _parse_status(listing_status)
+
+    filters = [Listing.seller_id == user.id]
+    if status_enum is not None:
+        filters.append(Listing.status == status_enum)
+    if sale_type_enum is not None:
+        filters.append(Listing.sale_type == sale_type_enum)
 
     total = db.scalar(select(func.count()).select_from(Listing).where(*filters)) or 0
     rows = list(
@@ -326,9 +392,10 @@ def create_listing(
 def update_listing(
     payload: ListingUpdate,
     listing: Listing = Depends(require_listing_owner_or_admin),
+    user: User = Depends(require_authenticated_user),
     db: Session = Depends(get_db_session),
 ) -> ListingOut:
-    """Owner-or-ADMIN edit. sale_type and seller ownership are immutable."""
+    """Owner-or-ADMIN edit. Sellers follow the lifecycle map; ADMIN is unrestricted."""
 
     data = payload.model_dump(exclude_unset=True)
     if payload.category_id is not None and db.get(Category, payload.category_id) is None:
@@ -342,8 +409,9 @@ def update_listing(
         )
     condition = _parse_condition(data.get("condition")) if "condition" in data else None
     if payload.status is not None:
-        _parse_status(payload.status)
-        listing.status = ListingStatus(payload.status)
+        target = _parse_status(payload.status)
+        assert target is not None
+        _apply_seller_status(listing, target, is_admin=is_admin(db, user))
 
     price = data.get("fixed_price_minor", listing.fixed_price_minor)
     offers = data.get("offers_enabled", listing.offers_enabled)
@@ -381,6 +449,72 @@ def update_listing(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Listing data violates database constraints.",
         ) from error
+    db.refresh(listing)
+    return _serialize_many(db, [listing])[0]
+
+
+@router.post("/listings/{listing_id}/submit", response_model=ListingOut)
+def submit_listing(
+    listing_id: uuid.UUID,
+    user: User = Depends(require_authenticated_user),
+    db: Session = Depends(get_db_session),
+) -> ListingOut:
+    """Owner submits a DRAFT for review.
+
+    Two-step auction workflow: an AUCTION listing must already have its
+    auction row (created via POST /auctions) before it is publishable.
+    Approval itself stays an admin action.
+    """
+
+    listing = db.scalars(
+        select(Listing).where(Listing.id == listing_id).with_for_update()
+    ).first()
+    if listing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found."
+        )
+    if listing.seller_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the listing owner may submit it for review.",
+        )
+    if listing.status != ListingStatus.DRAFT:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Listing is {listing.status.value}; only DRAFT listings can be submitted.",
+        )
+    if not listing.title or len(listing.title.strip()) < 3:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A title of at least 3 characters is required to submit.",
+        )
+    if db.get(Category, listing.category_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A valid category is required to submit.",
+        )
+    if listing.currency != "INR":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Currency must be INR.",
+        )
+    if not listing.city or not listing.country_code:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="City and country are required to submit.",
+        )
+    _check_price_rules(listing.sale_type, listing.fixed_price_minor, listing.offers_enabled)
+    if listing.sale_type == ListingSaleType.AUCTION:
+        auction_exists = db.scalars(
+            select(Auction.id).where(Auction.listing_id == listing.id)
+        ).first()
+        if auction_exists is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="AUCTION listings require auction configuration (POST /auctions) before review.",
+            )
+    listing.status = ListingStatus.PENDING_REVIEW
+    db.commit()
     db.refresh(listing)
     return _serialize_many(db, [listing])[0]
 
@@ -451,6 +585,71 @@ def add_image(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Image conflicts with an existing row (sort order or primary).",
+        ) from error
+    db.refresh(image)
+    return ImageOut.model_validate(image)
+
+
+@router.patch("/listings/{listing_id}/images/{image_id}", response_model=ImageOut)
+def update_image(
+    payload: ImageUpdate,
+    image_id: uuid.UUID,
+    listing: Listing = Depends(require_listing_owner_or_admin),
+    db: Session = Depends(get_db_session),
+) -> ImageOut:
+    """Owner-or-ADMIN image edit: sort_order, alt_text, is_primary.
+
+    Occupied sort orders are rejected (409) rather than swapped, so no
+    intermediate state ever violates uniqueness. Setting a new primary
+    demotes the previous one in the same transaction.
+    """
+
+    image = db.scalars(
+        select(ListingImage).where(
+            ListingImage.id == image_id, ListingImage.listing_id == listing.id
+        )
+    ).first()
+    if image is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Image not found."
+        )
+    data = payload.model_dump(exclude_unset=True)
+    if "sort_order" in data and data["sort_order"] is not None:
+        if data["sort_order"] != image.sort_order:
+            clash = db.scalars(
+                select(ListingImage).where(
+                    ListingImage.listing_id == listing.id,
+                    ListingImage.sort_order == data["sort_order"],
+                    ListingImage.id != image.id,
+                )
+            ).first()
+            if clash is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Another image already uses this sort order.",
+                )
+            image.sort_order = data["sort_order"]
+    if "alt_text" in data:
+        image.alt_text = data["alt_text"]
+    if data.get("is_primary") is True and not image.is_primary:
+        db.execute(
+            ListingImage.__table__.update()
+            .where(
+                ListingImage.listing_id == listing.id,
+                ListingImage.is_primary.is_(True),
+            )
+            .values(is_primary=False)
+        )
+        image.is_primary = True
+    elif "is_primary" in data and data["is_primary"] is False:
+        image.is_primary = False
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Image conflicts with an existing row.",
         ) from error
     db.refresh(image)
     return ImageOut.model_validate(image)

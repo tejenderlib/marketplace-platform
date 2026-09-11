@@ -16,6 +16,8 @@ import urllib.error
 import urllib.request
 import uuid
 
+from helpers import ensure_admin
+
 BASE = "http://api:8000/api/v1"
 FAILURES: list[str] = []
 
@@ -63,6 +65,7 @@ def main():
     seller_id, seller_tok = register(f"cseller-{tag}@example.com")
     buyer1_id, buyer1_tok = register(f"cbuyer1-{tag}@example.com")
     buyer2_id, buyer2_tok = register(f"cbuyer2-{tag}@example.com")
+    _, admin_tok = ensure_admin(tag, prefix="cadmin")
 
     from sqlalchemy import text
     from app.db.session import SessionLocal
@@ -84,7 +87,7 @@ def main():
         payload.update(over)
         status, body = call("POST", "/catalog/listings", payload, token=token)
         assert status == 201, (status, body)
-        status, active = call("PATCH", f"/catalog/listings/{body['id']}", {"status": "ACTIVE"}, token=token)
+        status, active = call("PATCH", f"/catalog/listings/{body['id']}", {"status": "ACTIVE"}, token=admin_tok)
         assert status == 200, (status, active)
         return body["id"]
 
@@ -198,22 +201,7 @@ def main():
     check("pagination", p1["total"] >= 2 and len(p1["items"]) == 1 and len(p2["items"]) == 1
           and p1["items"][0]["id"] != p2["items"][0]["id"], (p1, p2))
 
-    # ADMIN read
-    admin_role = db.execute(text("SELECT id FROM roles WHERE name = 'ADMIN'")).scalar()
-    admin_id = uuid.uuid4()
-    db.execute(text("INSERT INTO users (id, email, password_hash, status) VALUES (:i, :e, 'x', 'ACTIVE')"),
-               {"i": admin_id, "e": f"cadmin-{tag}@example.com"})
-    db.execute(text("INSERT INTO user_roles (id, user_id, role_id) VALUES (:i, :u, :r)"),
-               {"i": uuid.uuid4(), "u": admin_id, "r": admin_role})
-    db.commit()
-    db.close()
-    from app.identity.security import hash_password
-    from app.db.session import SessionLocal
-    db2 = SessionLocal()
-    db2.execute(text("UPDATE users SET password_hash = :h WHERE id = :u"),
-                {"h": hash_password("Admin1234"), "u": admin_id})
-    db2.commit()
-    db2.close()
+    # ADMIN read (reuse setup admin)
     status, alogin = call("POST", "/auth/login", {"email": f"cadmin-{tag}@example.com", "password": "Admin1234"})
     assert status == 200, (status, alogin)
     status, _ = call("GET", f"/orders/{oid}", token=alogin["access_token"])

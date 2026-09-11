@@ -185,6 +185,8 @@ def main():
 
     # 3. listing moderation across states
     def seed_listing(title, to_status):
+        # Canonical seeding: submit as seller, approve as admin, then admin
+        # sets terminal states (sellers can no longer PATCH arbitrarily).
         s, body = call("POST", "/catalog/listings",
                        {"category_id": str(cat), "sale_type": "FIXED_PRICE",
                         "title": title, "condition": "GOOD",
@@ -192,9 +194,21 @@ def main():
                         "city": "Jaipur", "country_code": "IN"},
                        token=seller_tok)
         assert s == 201, (s, body)
-        s, _ = call("PATCH", f"/catalog/listings/{body['id']}", {"status": to_status}, token=seller_tok)
-        assert s == 200, (s, body)
-        return body["id"]
+        lid = body["id"]
+        if to_status == "DRAFT":
+            return lid
+        s, _ = call("POST", f"/catalog/listings/{lid}/submit", token=seller_tok)
+        assert s == 200, (s, lid)
+        if to_status == "PENDING_REVIEW":
+            return lid
+        s, _ = call("POST", f"/admin/listings/{lid}/approve",
+                    {"reason": "seed approval"}, token=admin_tok)
+        assert s == 200, (s, lid)
+        if to_status == "ACTIVE":
+            return lid
+        s, _ = call("PATCH", f"/catalog/listings/{lid}", {"status": to_status}, token=admin_tok)
+        assert s == 200, (s, lid)
+        return lid
 
     pend1 = seed_listing("Mod Pending One", "PENDING_REVIEW")
     status, ap = call("POST", f"/admin/listings/{pend1}/approve",
@@ -230,7 +244,7 @@ def main():
     check("restore ACTIVE 409", status == 409, status)
     # audit rows for listing targets
     check("listing audit exact", audit_count(target_listing_id=pend1) == 1
-          and audit_count(target_listing_id=act1) == 2, "")
+          and audit_count(target_listing_id=act1) == 3, "")
     # invalid UUID-ish + missing
     status, _ = call("POST", f"/admin/listings/{uuid.uuid4()}/remove",
                      {"reason": "x"}, token=admin_tok)
@@ -246,7 +260,7 @@ def main():
     status, by_admin = call("GET", f"/admin/moderation?admin_id={admin_id}", token=admin_tok)
     check("audit admin filter", status == 200 and by_admin["total"] >= 5, by_admin.get("total"))
     status, by_target = call("GET", f"/admin/moderation?target_listing_id={act1}", token=admin_tok)
-    check("audit target filter", status == 200 and by_target["total"] == 2, by_target)
+    check("audit target filter", status == 200 and by_target["total"] == 3, by_target)
     status, one = call("GET", f"/admin/moderation/{rm['id']}", token=admin_tok)
     check("audit detail", status == 200 and one["reason"] == "policy violation"
           and one["admin_id"] == admin_id and one["created_at"] is not None, one)

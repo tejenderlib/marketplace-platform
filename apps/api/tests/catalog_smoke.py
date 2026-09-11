@@ -16,6 +16,8 @@ import urllib.error
 import urllib.request
 import uuid
 
+from helpers import ensure_admin
+
 BASE = "http://api:8000/api/v1"
 FAILURES: list[str] = []
 
@@ -58,6 +60,7 @@ def main():
     tag = uuid.uuid4().hex[:8]
     seller_id, seller_tok = register(f"seller-{tag}@example.com")
     buyer_id, buyer_tok = register(f"buyer-{tag}@example.com")
+    _, admin_tok = ensure_admin(tag, prefix="catadm")
 
     # seed categories via SQL (no category-write endpoint by design)
     from sqlalchemy import text
@@ -134,9 +137,9 @@ def main():
         else:
             check(label, status == 422, (status, body))
 
-    # activate both for browsing tests
+    # activate both for browsing tests (canonical publish: admin approves DRAFT)
     for listing_id in (lid, aid):
-        status, _ = call("PATCH", f"/catalog/listings/{listing_id}", {"status": "ACTIVE"}, token=seller_tok)
+        status, _ = call("PATCH", f"/catalog/listings/{listing_id}", {"status": "ACTIVE"}, token=admin_tok)
         assert status == 200, (status, listing_id)
 
     # 5. pagination + deterministic order

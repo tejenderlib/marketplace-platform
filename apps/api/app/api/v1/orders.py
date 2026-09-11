@@ -19,7 +19,6 @@ from app.orders.provider import get_provider
 from app.trading.models import Auction, AuctionResult, AuctionResultStatus, AuctionStatus, Bid
 from app.orders.schemas import OrderOut, OrderPaymentResponse, PaginatedOrders, PaymentOut, PaymentRequest
 from app.orders.views import record_history, serialize_many, serialize_order
-from app.trading.models import Auction, AuctionResult, AuctionResultStatus, AuctionStatus, Bid
 
 router = APIRouter(tags=["orders"])
 

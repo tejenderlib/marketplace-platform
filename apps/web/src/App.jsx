@@ -17,6 +17,11 @@ import RegisterPage from "./pages/Register.jsx";
 import FavoritesPage from "./pages/Favorites.jsx";
 import BuyerOffersPage from "./pages/BuyerOffers.jsx";
 import SellerOffersPage from "./pages/SellerOffers.jsx";
+import ProfilePage from "./pages/Profile.jsx";
+import CheckoutPage from "./pages/Checkout.jsx";
+import PaymentPage from "./pages/Payment.jsx";
+import AuctionCheckoutPage from "./pages/AuctionCheckout.jsx";
+import { OrdersPage, OrderDetailPage } from "./pages/Orders.jsx";
 
 const PAGE_SIZE = 12;
 
@@ -32,8 +37,18 @@ function parseRoute() {
   if (window.location.hash.startsWith("#/login")) return { page: "login" };
   if (window.location.hash.startsWith("#/register")) return { page: "register" };
   if (window.location.hash.startsWith("#/favorites")) return { page: "favorites" };
+  if (window.location.hash.startsWith("#/profile")) return { page: "profile" };
   if (window.location.hash.startsWith("#/seller/offers")) return { page: "seller-offers" };
   if (window.location.hash.startsWith("#/offers")) return { page: "offers" };
+  const checkoutFixed = window.location.hash.match(/^#\/checkout\/fixed\/([\w-]+)/);
+  if (checkoutFixed) return { page: "checkout", id: checkoutFixed[1] };
+  const checkoutAuction = window.location.hash.match(/^#\/checkout\/auction\/([\w-]+)/);
+  if (checkoutAuction) return { page: "auction-checkout", id: checkoutAuction[1] };
+  const checkoutPay = window.location.hash.match(/^#\/checkout\/payment\/([\w-]+)/);
+  if (checkoutPay) return { page: "payment", id: checkoutPay[1] };
+  const orderMatch = window.location.hash.match(/^#\/orders\/([\w-]+)/);
+  if (orderMatch) return { page: "order-detail", id: orderMatch[1] };
+  if (window.location.hash.startsWith("#/orders")) return { page: "orders" };
   const match = window.location.hash.match(/^#\/listing\/([\w-]+)/);
   if (match) return { page: "detail", id: match[1] };
   return { page: "home" };
@@ -180,6 +195,14 @@ export default function App() {
     );
   }
 
+  if (route.page === "profile") {
+    return (
+      <div className="app">
+        <ProfilePage />
+      </div>
+    );
+  }
+
   if (route.page === "offers") {
     return (
       <div className="app">
@@ -196,6 +219,46 @@ export default function App() {
     );
   }
 
+  if (route.page === "checkout") {
+    return (
+      <div className="app">
+        <CheckoutPage listingId={route.id} />
+      </div>
+    );
+  }
+
+  if (route.page === "auction-checkout") {
+    return (
+      <div className="app">
+        <AuctionCheckoutPage resultId={route.id} />
+      </div>
+    );
+  }
+
+  if (route.page === "payment") {
+    return (
+      <div className="app">
+        <PaymentPage orderId={route.id} />
+      </div>
+    );
+  }
+
+  if (route.page === "orders") {
+    return (
+      <div className="app">
+        <OrdersPage />
+      </div>
+    );
+  }
+
+  if (route.page === "order-detail") {
+    return (
+      <div className="app">
+        <OrderDetailPage id={route.id} />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <Header
@@ -205,7 +268,9 @@ export default function App() {
         onLogin={() => {
           window.location.hash = "#/login";
         }}
-        onOrders={() => placeholderAction("My Orders")}
+        onOrders={() => {
+          window.location.hash = "#/orders";
+        }}
         onSell={() => {
           if (isAuthenticated) {
             placeholderAction("Selling");

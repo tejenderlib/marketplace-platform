@@ -52,14 +52,15 @@ def main():
     assert status == 200, (status, login)
     tok = login["access_token"]
 
-    # 1. edit own profile (existing fields only)
+    # 1. edit own profile (writable fields: display_name + avatar_key only)
     status, updated = call("PATCH", "/users/me/profile",
-                           {"display_name": "Prof Tester", "first_name": "Prof",
-                            "bio": "Marketplace regular."},
+                           {"display_name": "Prof Tester", "avatar_key": "avatar-1",
+                            "first_name": "Prof", "bio": "Marketplace regular."},
                            token=tok)
     check("update 200", status == 200 and updated["profile"]["display_name"] == "Prof Tester"
-          and updated["profile"]["first_name"] == "Prof"
-          and updated["profile"]["bio"] == "Marketplace regular."
+          and updated["profile"]["avatar_url"] == "avatar-1"
+          and updated["profile"]["first_name"] is None
+          and updated["profile"]["bio"] is None
           and "password_hash" not in json.dumps(updated), (status, updated))
 
     # 2. persists and surfaces via /me
@@ -69,12 +70,12 @@ def main():
     # 3. validation
     status, _ = call("PATCH", "/users/me/profile", {"display_name": "x"}, token=tok)
     check("short display 422", status == 422, status)
-    status, _ = call("PATCH", "/users/me/profile", {"bio": "y" * 2001}, token=tok)
-    check("long bio 422", status == 422, status)
+    status, _ = call("PATCH", "/users/me/profile", {"display_name": "y" * 121}, token=tok)
+    check("long display_name 422", status == 422, status)
 
-    # 4. empty string clears to null
-    status, cleared = call("PATCH", "/users/me/profile", {"bio": ""}, token=tok)
-    check("blank clears", status == 200 and cleared["profile"]["bio"] is None, (status, cleared))
+    # 4. null clears a nullable field
+    status, cleared = call("PATCH", "/users/me/profile", {"display_name": None}, token=tok)
+    check("null clears display_name", status == 200 and cleared["profile"]["display_name"] is None, (status, cleared))
 
     # 5. auth gating + no cross-user targeting surface
     status, _ = call("PATCH", "/users/me/profile", {"display_name": "Anon"})

@@ -6,7 +6,7 @@ import re
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, Field
 
 from app.identity.security import normalize_email, validate_password_strength
 
@@ -89,6 +89,16 @@ class ProfileResponse(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     avatar_url: str | None = None
+    bio: str | None = None
+
+
+class ProfileUpdate(BaseModel):
+    """Owner-only edit of existing profile fields (no new columns)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    display_name: str | None = Field(default=None, max_length=120)
+    avatar_key: str | None = Field(default=None, max_length=64)
 
 
 class UserResponse(BaseModel):

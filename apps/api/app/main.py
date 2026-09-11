@@ -11,6 +11,7 @@ from app.api.v1.health import router as health_router
 from app.api.v1.offers import router as offers_router
 from app.api.v1.offers import seller_router as seller_offers_router
 from app.api.v1.orders import router as orders_router
+from app.api.v1.profile import router as profile_router
 from app.core.config import get_settings
 
 
@@ -41,4 +42,5 @@ app.include_router(addresses_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(checkout_router, prefix="/api/v1")
 app.include_router(orders_router, prefix="/api/v1")
+app.include_router(profile_router, prefix="/api/v1")
 app.include_router(health_router, prefix="/api/v1")

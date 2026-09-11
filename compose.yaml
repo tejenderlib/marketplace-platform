@@ -76,6 +76,8 @@ services:
   # credentials from .env (the password is entered in the browser, never stored here).
   adminer:
     image: adminer:latest
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

@@ -87,6 +87,10 @@ export default function ListingDetail({
 
           <dl className="detail-facts">
             <div>
+              <dt>Status</dt>
+              <dd><span className="pill">{listing.status}</span></dd>
+            </div>
+            <div>
               <dt>Location</dt>
               <dd>{listing.location || "—"}</dd>
             </div>
@@ -112,7 +116,13 @@ export default function ListingDetail({
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={() => (isAuthenticated ? onPlaceholder("Buy Now") : onRequireLogin())}
+                onClick={() => {
+                  if (isAuthenticated) {
+                    window.location.hash = `#/checkout/fixed/${listing.id}`;
+                  } else {
+                    onRequireLogin();
+                  }
+                }}
               >
                 Buy Now
               </button>
@@ -151,6 +161,7 @@ export default function ListingDetail({
             <AuctionPanel
               listingId={listing.id}
               isAuthenticated={isAuthenticated}
+              currentUserId={currentUserId}
               authFetch={authFetch}
               onRequireLogin={onRequireLogin}
             />

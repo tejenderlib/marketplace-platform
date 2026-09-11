@@ -68,6 +68,7 @@ def _user_response(db: Session, user: User) -> UserResponse:
                 first_name=profile.first_name,
                 last_name=profile.last_name,
                 avatar_url=profile.avatar_url,
+                bio=profile.bio,
             )
             if profile is not None
             else None

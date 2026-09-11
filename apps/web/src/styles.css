@@ -1038,3 +1038,121 @@ body {
   background: #eef3f6;
   color: #5c6b7a;
 }
+
+/* Checkout flow */
+
+.steps {
+  list-style: none;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.step span {
+  display: inline-block;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: #eef3f6;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.step.current span {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.step.done span {
+  background: #e3f2ec;
+  border-color: #9ed3b6;
+  color: #0c6b3f;
+}
+
+.address-option {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-grid label,
+.detail-card > label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.form-grid input,
+.form-grid select,
+.detail-card input,
+.detail-card select {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  width: 100%;
+}
+
+.profile-hero {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.profile-hero h1 {
+  margin: 0 0 0.25rem;
+}
+
+.profile-hero p {
+  margin: 0.15rem 0;
+}
+
+.profile-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.profile-hero .btn {
+  margin-left: auto;
+}
+
+a.user-chip {
+  text-decoration: none;
+}
+
+@media (max-width: 700px) {
+  .profile-hero {
+    flex-wrap: wrap;
+  }
+
+  .profile-hero .btn {
+    margin-left: 0;
+    width: 100%;
+  }
+}

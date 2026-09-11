@@ -14,6 +14,8 @@ import threading
 import urllib.error
 import urllib.request
 import uuid
+
+from helpers import ensure_admin
 from datetime import datetime, timedelta, timezone
 
 BASE = "http://api:8000/api/v1"
@@ -62,7 +64,7 @@ ADDR = {
 }
 
 
-def make_auction_cycle(tag, seller_tok, bidder_tok, title, backdate_end=True):
+def make_auction_cycle(tag, seller_tok, bidder_tok, title, admin_tok, backdate_end=True):
     """Create listing -> auction -> LIVE -> bid -> (backdated) close. Returns ids."""
     from sqlalchemy import text
     from app.db.session import SessionLocal
@@ -76,7 +78,7 @@ def make_auction_cycle(tag, seller_tok, bidder_tok, title, backdate_end=True):
                            token=seller_tok)
     assert status == 201, (status, listing)
     lid = listing["id"]
-    call("PATCH", f"/catalog/listings/{lid}", {"status": "ACTIVE"}, token=seller_tok)
+    call("PATCH", f"/catalog/listings/{lid}", {"status": "ACTIVE"}, token=admin_tok)
     now = datetime.now(timezone.utc)
     status, auc = call("POST", "/auctions",
                        {"listing_id": lid, "starting_bid_minor": 50000,
@@ -107,6 +109,7 @@ def main():
     seller_id, seller_tok = register(f"wseller-{tag}@example.com")
     winner_id, winner_tok = register(f"wwinner-{tag}@example.com")
     stranger_id, stranger_tok = register(f"wstranger-{tag}@example.com")
+    _, admin_tok = ensure_admin(tag, prefix="wadmin")
 
     from sqlalchemy import text
     from app.db.session import SessionLocal
@@ -119,7 +122,7 @@ def main():
     db.commit()
     db.close()
 
-    lid, aid, res = make_auction_cycle(tag, seller_tok, winner_tok, "Ivory Chess Set")
+    lid, aid, res = make_auction_cycle(tag, seller_tok, winner_tok, "Ivory Chess Set", admin_tok)
     rid = res["id"]
 
     # 1. valid winner checkout
@@ -185,7 +188,7 @@ def main():
           and manip["id"] == oid, (status, manip))
 
     # 5. expiry: backdate a fresh result, checkout flips to PAYMENT_EXPIRED
-    lid2, aid2, res2b = make_auction_cycle(tag, seller_tok, winner_tok, "Marble Elephant")
+    lid2, aid2, res2b = make_auction_cycle(tag, seller_tok, winner_tok, "Marble Elephant", admin_tok)
     rid2 = res2b["id"]
     db2 = SessionLocal()
     db2.execute(text("UPDATE auction_results SET checkout_expires_at = now() - interval '1 hour' WHERE id = :i"),
@@ -219,7 +222,7 @@ def main():
           and lrow == "SOLD" and brow[0] == "WON", (arow, lrow, brow))
 
     # 7. failure + retry on second auction cycle
-    lid3, aid3, res3b = make_auction_cycle(tag, seller_tok, winner_tok, "Brass Lamp")
+    lid3, aid3, res3b = make_auction_cycle(tag, seller_tok, winner_tok, "Brass Lamp", admin_tok)
     rid3 = res3b["id"]
     status, order3 = call("POST", "/checkout/auction",
                           {"auction_result_id": rid3, "contact_email": "w@example.com",
@@ -287,7 +290,7 @@ def _cleanup(tag):
             db.execute(text("DELETE FROM listing_images WHERE listing_id = :l"), {"l": lid})
             db.execute(text("DELETE FROM listings WHERE id = :l"), {"l": lid})
         db.execute(text("DELETE FROM categories WHERE slug = :s"), {"s": f"winccat-{tag}"})
-        for prefix in ("wseller-", "wwinner-", "wstranger-"):
+        for prefix in ("wseller-", "wwinner-", "wstranger-", "wadmin-"):
             for (uid,) in db.execute(
                 text("SELECT id FROM users WHERE email LIKE :p"), {"p": f"{prefix}{tag}@example.com"}
             ).all():

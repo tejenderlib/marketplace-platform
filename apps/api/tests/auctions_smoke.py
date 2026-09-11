@@ -15,6 +15,8 @@ import threading
 import urllib.error
 import urllib.request
 import uuid
+
+from helpers import ensure_admin
 from datetime import datetime, timedelta, timezone
 
 BASE = "http://api:8000/api/v1"
@@ -63,6 +65,7 @@ def main():
     b1_id, b1_tok = register(f"bidder1-{tag}@example.com")
     b2_id, b2_tok = register(f"bidder2-{tag}@example.com")
     b3_id, b3_tok = register(f"bidder3-{tag}@example.com")
+    _, admin_tok = ensure_admin(tag, prefix="aadmin")
 
     from sqlalchemy import text
     from app.db.session import SessionLocal
@@ -83,7 +86,7 @@ def main():
         payload.update(over)
         status, body = call("POST", "/catalog/listings", payload, token=token)
         assert status == 201, (status, body)
-        status, active = call("PATCH", f"/catalog/listings/{body['id']}", {"status": "ACTIVE"}, token=token)
+        status, active = call("PATCH", f"/catalog/listings/{body['id']}", {"status": "ACTIVE"}, token=admin_tok)
         assert status == 200, (status, active)
         return body["id"]
 
@@ -381,7 +384,7 @@ def _cleanup(tag):
             db.execute(text("DELETE FROM listing_images WHERE listing_id = :l"), {"l": lid})
             db.execute(text("DELETE FROM listings WHERE id = :l"), {"l": lid})
         db.execute(text("DELETE FROM categories WHERE slug = :s"), {"s": f"auctioncat-{tag}"})
-        for prefix in ("aseller-", "bidder1-", "bidder2-", "bidder3-"):
+        for prefix in ("aseller-", "bidder1-", "bidder2-", "bidder3-", "aadmin-"):
             for (uid,) in db.execute(
                 text("SELECT id FROM users WHERE email LIKE :p"), {"p": f"{prefix}{tag}@example.com"}
             ).all():

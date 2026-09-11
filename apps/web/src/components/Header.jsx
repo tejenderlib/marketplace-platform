@@ -37,9 +37,9 @@ export default function Header({
           </span>
           {user ? (
             <>
-              <span className="user-chip" title={user.email}>
+              <a className="user-chip" title={user.email} href="#/profile">
                 {displayName}
-              </span>
+              </a>
               <a className="btn btn-ghost" href="#/favorites">
                 Favorites
               </a>

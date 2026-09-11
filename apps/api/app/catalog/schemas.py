@@ -137,6 +137,16 @@ class ImageCreate(BaseModel):
     is_primary: bool = False
 
 
+class ImageUpdate(BaseModel):
+    """Updatable image fields. sort_order/primary uniqueness enforced server-side."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    sort_order: int | None = Field(default=None, ge=0)
+    alt_text: str | None = Field(default=None, max_length=255)
+    is_primary: bool | None = None
+
+
 class FavoriteOut(BaseModel):
     user_id: uuid.UUID
     listing_id: uuid.UUID

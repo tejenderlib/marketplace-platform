@@ -43,6 +43,7 @@ function describeBidError(error) {
 export default function AuctionPanel({
   listingId,
   isAuthenticated,
+  currentUserId,
   authFetch,
   onRequireLogin,
 }) {
@@ -349,6 +350,20 @@ export default function AuctionPanel({
                 </>
               )}
             </dl>
+          )}
+          {!result.loading && !result.error && result.data
+            && result.data.status === "AWAITING_CHECKOUT"
+            && isAuthenticated && currentUserId != null
+            && result.data.winner_id === currentUserId && (
+            <button
+              type="button"
+              className="btn btn-primary btn-block"
+              onClick={() => {
+                window.location.hash = `#/checkout/auction/${result.data.id}`;
+              }}
+            >
+              Complete Purchase
+            </button>
           )}
         </div>
       )}
