@@ -429,6 +429,41 @@ body {
   white-space: nowrap;
 }
 
+.listing-seller {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.9rem;
+  border-top: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.listing-seller:hover {
+  background: var(--hover);
+}
+
+.listing-seller-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.listing-seller-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .empty-state {
   background: var(--card);
   border: 1px dashed var(--border);
@@ -738,11 +773,25 @@ body {
   font-size: 1.4rem;
   font-weight: 800;
   flex-shrink: 0;
+  text-decoration: none;
+}
+
+.seller-avatar:hover {
+  opacity: 0.85;
 }
 
 .seller-name {
   margin: 0;
   font-weight: 800;
+}
+
+.seller-name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.seller-name a:hover {
+  text-decoration: underline;
 }
 
 .seller-info {
@@ -1140,6 +1189,33 @@ body {
 
 .profile-hero .btn {
   margin-left: auto;
+}
+
+.avatar-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.avatar-item {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.avatar-item.is-selected {
+  border-color: var(--text);
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
 }
 
 a.user-chip {

@@ -18,9 +18,11 @@ import FavoritesPage from "./pages/Favorites.jsx";
 import BuyerOffersPage from "./pages/BuyerOffers.jsx";
 import SellerOffersPage from "./pages/SellerOffers.jsx";
 import ProfilePage from "./pages/Profile.jsx";
+import SellerProfilePage from "./pages/SellerProfile.jsx";
 import CheckoutPage from "./pages/Checkout.jsx";
 import PaymentPage from "./pages/Payment.jsx";
 import AuctionCheckoutPage from "./pages/AuctionCheckout.jsx";
+import OfferCheckoutPage from "./pages/OfferCheckout.jsx";
 import { OrdersPage, OrderDetailPage } from "./pages/Orders.jsx";
 
 const PAGE_SIZE = 12;
@@ -39,11 +41,15 @@ function parseRoute() {
   if (window.location.hash.startsWith("#/favorites")) return { page: "favorites" };
   if (window.location.hash.startsWith("#/profile")) return { page: "profile" };
   if (window.location.hash.startsWith("#/seller/offers")) return { page: "seller-offers" };
+  const sellerProfile = window.location.hash.match(/^#\/seller\/([\w-]+)/);
+  if (sellerProfile) return { page: "seller", id: sellerProfile[1] };
   if (window.location.hash.startsWith("#/offers")) return { page: "offers" };
   const checkoutFixed = window.location.hash.match(/^#\/checkout\/fixed\/([\w-]+)/);
   if (checkoutFixed) return { page: "checkout", id: checkoutFixed[1] };
   const checkoutAuction = window.location.hash.match(/^#\/checkout\/auction\/([\w-]+)/);
   if (checkoutAuction) return { page: "auction-checkout", id: checkoutAuction[1] };
+  const checkoutOffer = window.location.hash.match(/^#\/checkout\/offer\/([\w-]+)/);
+  if (checkoutOffer) return { page: "offer-checkout", id: checkoutOffer[1] };
   const checkoutPay = window.location.hash.match(/^#\/checkout\/payment\/([\w-]+)/);
   if (checkoutPay) return { page: "payment", id: checkoutPay[1] };
   const orderMatch = window.location.hash.match(/^#\/orders\/([\w-]+)/);
@@ -203,6 +209,14 @@ export default function App() {
     );
   }
 
+  if (route.page === "seller") {
+    return (
+      <div className="app">
+        <SellerProfilePage userId={route.id} />
+      </div>
+    );
+  }
+
   if (route.page === "offers") {
     return (
       <div className="app">
@@ -231,6 +245,14 @@ export default function App() {
     return (
       <div className="app">
         <AuctionCheckoutPage resultId={route.id} />
+      </div>
+    );
+  }
+
+  if (route.page === "offer-checkout") {
+    return (
+      <div className="app">
+        <OfferCheckoutPage offerId={route.id} />
       </div>
     );
   }

@@ -101,6 +101,16 @@ class ProfileUpdate(BaseModel):
     avatar_key: str | None = Field(default=None, max_length=64)
 
 
+class PublicUserProfile(BaseModel):
+    """Public read-only profile. No email, roles, status, or auth data."""
+
+    id: uuid.UUID
+    display_name: str | None = None
+    avatar_url: str | None = None
+    location: str | None = None
+    active_listings_count: int = 0
+
+
 class UserResponse(BaseModel):
     """Safe user representation. Never includes password_hash or token secrets."""
 

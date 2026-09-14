@@ -40,6 +40,14 @@ export default function ListingCard({ listing, isFavorite, onToggleFavorite }) {
           </p>
         </div>
       </a>
+      {listing.sellerId && (
+        <a className="listing-seller" href={`#/seller/${listing.sellerId}`}>
+          <span className="listing-seller-avatar" aria-hidden="true">
+            {listing.sellerName.charAt(0).toUpperCase()}
+          </span>
+          <span className="listing-seller-name">{listing.sellerName}</span>
+        </a>
+      )}
     </article>
   );
 }

@@ -108,6 +108,11 @@ export default function BuyerOffersPage() {
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelectedId(offer.id)}>
                         View
                       </button>
+                      {offer.status === "ACCEPTED" && (
+                        <a className="btn btn-primary btn-sm" href={`#/checkout/offer/${offer.id}`}>
+                          Proceed to checkout
+                        </a>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -162,6 +162,17 @@ class OrderPaymentResponse(BaseModel):
     order: OrderOut
 
 
+class OfferCheckoutRequest(BaseModel):
+    """Accepted-offer checkout input. Price comes from the locked offer row."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    offer_id: uuid.UUID
+    contact_email: str
+    address_id: uuid.UUID | None = None
+    address: AddressBase | None = None
+
+
 class AuctionCheckoutRequest(BaseModel):
     """Winner checkout input. Winner/price/seller all come from the result row."""
 

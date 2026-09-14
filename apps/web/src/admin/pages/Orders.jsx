@@ -60,6 +60,8 @@ export function OrdersPage() {
               <thead>
                 <tr>
                   <th>Order</th>
+                  <th>Buyer</th>
+                  <th>Seller</th>
                   <th>Total</th>
                   <th>Status</th>
                   <th>Source</th>
@@ -73,6 +75,8 @@ export function OrdersPage() {
                       <a href={`#/admin/orders/${order.id}`}>{order.listing_title_snapshot}</a>
                       <div className="muted small mono">{order.id.slice(0, 8)}…</div>
                     </td>
+                    <td>{order.buyer?.display_name ?? "—"}</td>
+                    <td>{order.seller?.display_name ?? "—"}</td>
                     <td>{formatPrice(order.total_minor)}</td>
                     <td><span className="pill">{order.status}</span></td>
                     <td>{order.source}</td>

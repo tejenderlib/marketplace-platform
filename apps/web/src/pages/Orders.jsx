@@ -74,6 +74,8 @@ export function OrdersPage() {
               <thead>
                 <tr>
                   <th>Item</th>
+                  <th>Buyer</th>
+                  <th>Seller</th>
                   <th>Total</th>
                   <th>Status</th>
                   <th>Ordered</th>
@@ -83,6 +85,8 @@ export function OrdersPage() {
                 {state.items.map((order) => (
                   <tr key={order.id}>
                     <td><a href={`#/orders/${order.id}`}>{order.listing_title_snapshot}</a></td>
+                    <td>{order.buyer?.display_name ?? "—"}</td>
+                    <td>{order.seller?.display_name ?? "—"}</td>
                     <td>{formatPrice(order.total_minor)}</td>
                     <td><span className="pill">{order.status}</span></td>
                     <td>{formatDateTime(order.created_at)}</td>
@@ -163,6 +167,8 @@ export function OrderDetailPage({ id }) {
           <h2>Summary</h2>
           <dl className="kv">
             <dt>Item</dt><dd>{order.listing_title_snapshot}</dd>
+            <dt>Buyer</dt><dd>{order.buyer?.display_name ?? "—"}</dd>
+            <dt>Seller</dt><dd>{order.seller?.display_name ?? "—"}</dd>
             <dt>Subtotal</dt><dd>{formatPrice(order.subtotal_minor)}</dd>
             <dt>Shipping</dt><dd>{formatPrice(order.shipping_minor)}</dd>
             <dt>Total</dt><dd><strong>{formatPrice(order.total_minor)}</strong></dd>

@@ -13,6 +13,31 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
+const PRESET_AVATARS = [
+  { key: "blue", color: "#2563eb" },
+  { key: "green", color: "#16a34a" },
+  { key: "red", color: "#dc2626" },
+  { key: "purple", color: "#7c3aed" },
+  { key: "orange", color: "#ea580c" },
+  { key: "teal", color: "#0d9488" },
+];
+
+function AvatarItem({ avatar, selected, onSelect }) {
+  return (
+    <button
+      type="button"
+      className={selected ? "avatar-item is-selected" : "avatar-item"}
+      style={{ background: avatar.color }}
+      onClick={onSelect}
+      aria-label={`Avatar color ${avatar.key}`}
+      aria-pressed={selected}
+      title={`Avatar color ${avatar.key}`}
+    >
+      {selected ? "✓" : ""}
+    </button>
+  );
+}
+
 function useProfileListings(userId) {
   const { authFetch } = useAuth();
   const [state, setState] = useState({ loading: true, error: null, items: [], total: 0 });
@@ -65,6 +90,7 @@ export default function ProfilePage() {
     setForm({
       display_name: user.profile?.display_name ?? "",
     });
+    setSelectedAvatarKey(user.profile?.avatar_url ?? null);
     let alive = true;
     (async () => {
       try {
@@ -106,6 +132,7 @@ export default function ProfilePage() {
     const payload = {};
     const value = form.display_name.trim();
     payload.display_name = value === "" ? null : value;
+    payload.avatar_key = selectedAvatarKey;
     try {
       await authFetch("/users/me/profile", { method: "PATCH", body: payload });
       await reloadUser();
@@ -122,11 +149,12 @@ export default function ProfilePage() {
   };
 
   const displayName = user?.profile?.display_name ?? user?.email?.split("@")[0] ?? "Account";
+  const currentAvatar = PRESET_AVATARS.find((a) => a.key === user?.profile?.avatar_url) ?? null;
 
   return (
     <div className="content">
       <div className="detail-card profile-hero">
-        <span className="profile-avatar" aria-hidden="true">
+        <span className="profile-avatar" aria-hidden="true" style={currentAvatar ? { background: currentAvatar.color } : undefined}>
           {displayName.charAt(0).toUpperCase()}
         </span>
         <div>
@@ -159,10 +187,9 @@ export default function ProfilePage() {
             <label><span>Display name</span>
               <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} maxLength={120} placeholder="At least 2 characters" />
             </label>
-            <label><span>Display name</span>
-              <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} maxLength={120} placeholder="At least 2 characters" />
+            <label><span>Avatar</span>
               <div className="avatar-grid">
-                {avatars.map((avatar) => (
+                {PRESET_AVATARS.map((avatar) => (
                   <AvatarItem
                     key={avatar.key}
                     avatar={avatar}

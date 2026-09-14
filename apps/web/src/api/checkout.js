@@ -20,6 +20,10 @@ export function auctionCheckout(authFetch, payload) {
   return authFetch("/checkout/auction", { method: "POST", body: payload });
 }
 
+export function offerCheckout(authFetch, payload) {
+  return authFetch("/checkout/offer", { method: "POST", body: payload });
+}
+
 export function myOrders(authFetch, { status, limit = 20, offset = 0 } = {}) {
   const params = new URLSearchParams();
   if (status) params.set("status", status);

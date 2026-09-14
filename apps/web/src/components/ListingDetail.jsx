@@ -171,21 +171,37 @@ export default function ListingDetail({
         <aside className="detail-side">
           <div className="seller-card">
             <div className="seller-top">
-              <span className="seller-avatar" aria-hidden="true">
-                {listing.sellerName.charAt(0).toUpperCase()}
-              </span>
+              {listing.sellerId ? (
+                <a className="seller-avatar" href={`#/seller/${listing.sellerId}`} aria-label={`${listing.sellerName} profile`}>
+                  {listing.sellerName.charAt(0).toUpperCase()}
+                </a>
+              ) : (
+                <span className="seller-avatar" aria-hidden="true">
+                  {listing.sellerName.charAt(0).toUpperCase()}
+                </span>
+              )}
               <div>
-                <p className="seller-name">{listing.sellerName}</p>
+                {listing.sellerId ? (
+                  <p className="seller-name"><a href={`#/seller/${listing.sellerId}`}>{listing.sellerName}</a></p>
+                ) : (
+                  <p className="seller-name">{listing.sellerName}</p>
+                )}
                 <p className="seller-info">{listing.location}</p>
               </div>
             </div>
-            <button
-              type="button"
-              className="btn btn-ghost btn-block"
-              onClick={() => onPlaceholder("Seller profiles")}
-            >
-              View Profile
-            </button>
+            {listing.sellerId ? (
+              <a className="btn btn-ghost btn-block" href={`#/seller/${listing.sellerId}`}>
+                View Profile
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-ghost btn-block"
+                onClick={() => onPlaceholder("Seller profiles")}
+              >
+                View Profile
+              </button>
+            )}
           </div>
         </aside>
       </div>

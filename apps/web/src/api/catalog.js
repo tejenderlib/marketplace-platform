@@ -18,8 +18,13 @@ export function fetchCategories() {
 }
 
 /** GET /api/v1/catalog/listings with backend filtering + pagination (public). */
-export function fetchListings({ q, category_id, sale_type, status = "ACTIVE", limit = 12, offset = 0 } = {}) {
-  return apiFetch(`/catalog/listings${params({ q, category_id, sale_type, status, limit, offset })}`);
+export function fetchListings({ q, category_id, sale_type, seller_id, status = "ACTIVE", limit = 12, offset = 0 } = {}) {
+  return apiFetch(`/catalog/listings${params({ q, category_id, sale_type, seller_id, status, limit, offset })}`);
+}
+
+/** GET /api/v1/users/{user_id}/public-profile (public). */
+export function fetchPublicProfile(userId) {
+  return apiFetch(`/users/${encodeURIComponent(userId)}/public-profile`);
 }
 
 /** GET /api/v1/catalog/listings/{id} (public). */

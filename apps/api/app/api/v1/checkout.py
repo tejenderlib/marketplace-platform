@@ -33,10 +33,18 @@ from app.orders.schemas import (
     AddressBase,
     AuctionCheckoutRequest,
     CheckoutRequest,
+    OfferCheckoutRequest,
     OrderOut,
 )
 from app.orders.views import record_history, serialize_order
-from app.trading.models import Auction, AuctionResult, AuctionResultStatus, AuctionStatus
+from app.trading.models import (
+    Auction,
+    AuctionResult,
+    AuctionResultStatus,
+    AuctionStatus,
+    Offer,
+    OfferStatus,
+)
 
 router = APIRouter(prefix="/checkout", tags=["checkout"])
 
@@ -194,6 +202,133 @@ def fixed_price_checkout(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Listing was just purchased by another buyer.",
+        ) from error
+    db.refresh(order)
+    return serialize_order(db, order)
+
+
+@router.post("/offer", response_model=OrderOut, status_code=status.HTTP_201_CREATED)
+def accepted_offer_checkout(
+    payload: OfferCheckoutRequest,
+    user: User = Depends(require_authenticated_user),
+    db: Session = Depends(get_db_session),
+) -> OrderOut:
+    """Accepted-offer checkout: lock offer + listing, create exactly one ACCEPTED_OFFER order."""
+
+    contact_email = _validate_contact_email(payload.contact_email)
+
+    offer = db.scalars(
+        select(Offer).where(Offer.id == payload.offer_id).with_for_update()
+    ).first()
+    if offer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Offer not found."
+        )
+    existing = db.scalars(
+        select(Order).where(Order.accepted_offer_id == offer.id)
+    ).first()
+    if existing is not None:
+        if existing.buyer_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the offer buyer may access this order.",
+            )
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content=serialize_order(db, existing).model_dump(mode="json"),
+        )
+    if offer.status != OfferStatus.ACCEPTED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Offer is {offer.status.value}; only ACCEPTED offers can be checked out.",
+        )
+    if offer.buyer_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the offer buyer may checkout this offer.",
+        )
+    if offer.currency != "INR":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Offer currency is not purchasable.",
+        )
+    listing = db.scalars(
+        select(Listing).where(Listing.id == offer.listing_id).with_for_update()
+    ).first()
+    if listing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found."
+        )
+    if listing.status != ListingStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Listing is {listing.status.value} and cannot be purchased.",
+        )
+    if listing.sale_type != ListingSaleType.FIXED_PRICE:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Only FIXED_PRICE listings support offer checkout.",
+        )
+    if listing.seller_id == user.id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="You cannot buy your own listing.",
+        )
+    if listing.fixed_price_minor is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Listing price is not purchasable.",
+        )
+
+    snapshot, source_address_id = _resolve_snapshot(
+        db, user, payload.address_id, payload.address
+    )
+    subtotal = offer.amount_minor
+    shipping = FLAT_SHIPPING_MINOR
+    order = Order(
+        listing_id=listing.id,
+        buyer_id=user.id,
+        seller_id=listing.seller_id,
+        source=OrderSource.ACCEPTED_OFFER,
+        accepted_offer_id=offer.id,
+        auction_result_id=None,
+        listing_title_snapshot=listing.title,
+        contact_email_normalized=contact_email,
+        currency="INR",
+        subtotal_minor=subtotal,
+        shipping_minor=shipping,
+        total_minor=subtotal + shipping,
+        status=OrderStatus.PENDING_PAYMENT,
+    )
+    db.add(order)
+    db.flush()
+    db.add(
+        OrderShippingAddress(
+            order_id=order.id, source_address_id=source_address_id, **snapshot
+        )
+    )
+    record_history(db, order, None, OrderStatus.PENDING_PAYMENT, user.id, "Accepted-offer checkout.")
+    listing.status = ListingStatus.RESERVED
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        existing = db.scalars(
+            select(Order).where(Order.accepted_offer_id == offer.id)
+        ).first()
+        if existing is not None:
+            if existing.buyer_id != user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only the offer buyer may access this order.",
+                ) from error
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content=serialize_order(db, existing).model_dump(mode="json"),
+            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Checkout conflicts with an existing record.",
         ) from error
     db.refresh(order)
     return serialize_order(db, order)
