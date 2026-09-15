@@ -50,6 +50,9 @@ def check(label, condition, detail=""):
 def register(email):
     status, body = call("POST", "/auth/register", {"email": email, "password": "Bid12345"})
     assert status == 201, (status, body)
+    # Phase 8: marketplace actions require a verified (ACTIVE) account.
+    status, _v = call("POST", "/auth/verify-email", {"token": body["verification_token"]})
+    assert status == 200, (status, _v)
     status, login = call("POST", "/auth/login", {"email": email, "password": "Bid12345"})
     assert status == 200, (status, login)
     return body["id"], login["access_token"]

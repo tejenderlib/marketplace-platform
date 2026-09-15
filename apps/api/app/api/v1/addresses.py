@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db_session
-from app.identity.dependencies import require_authenticated_user
+from app.identity.dependencies import require_active_user, require_authenticated_user
 from app.identity.models import User
 from app.orders.models import AddressStatus, UserAddress
 from app.orders.schemas import AddressCreate, AddressOut, AddressUpdate
@@ -46,7 +46,7 @@ def _validate_india(country: str | None) -> None:
 @router.post("", response_model=AddressOut, status_code=status.HTTP_201_CREATED)
 def create_address(
     payload: AddressCreate,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> AddressOut:
     """Save an address; first address (or explicit flag) becomes the default."""
@@ -92,7 +92,7 @@ def create_address(
 
 @router.get("", response_model=list[AddressOut])
 def list_addresses(
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> list[AddressOut]:
     """The caller's ACTIVE saved addresses, defaults first."""
@@ -114,7 +114,7 @@ def list_addresses(
 def update_address(
     address_id: uuid.UUID,
     payload: AddressUpdate,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> AddressOut:
     """Update own address; preserves the single-default rule."""

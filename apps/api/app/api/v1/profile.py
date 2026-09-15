@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.auth import _user_response
 from app.catalog.models import Listing, ListingStatus
 from app.db.session import get_db_session
-from app.identity.dependencies import require_authenticated_user
+from app.identity.dependencies import require_active_user, require_authenticated_user
 from app.identity.models import User, UserProfile, UserStatus
 from app.identity.schemas import ProfileUpdate, PublicUserProfile, UserResponse
 
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/users", tags=["profile"])
 @router.patch("/me/profile", response_model=UserResponse)
 def update_own_profile(
     payload: ProfileUpdate,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> UserResponse:
     """Edit the caller's own profile. Creates the row if missing.

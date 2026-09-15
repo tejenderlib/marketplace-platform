@@ -32,6 +32,7 @@ class ModerationActionType(str, enum.Enum):
     LISTING_RESTORED = "LISTING_RESTORED"
     LISTING_REJECTED = "LISTING_REJECTED"
     LISTING_APPROVED = "LISTING_APPROVED"
+    REVIEW_REMOVED = "REVIEW_REMOVED"
 
 
 moderation_action_type_enum = PG_ENUM(
@@ -45,8 +46,9 @@ class ModerationAction(Base):
     __tablename__ = "moderation_actions"
     __table_args__ = (
         CheckConstraint(
-            "(target_listing_id IS NOT NULL AND target_user_id IS NULL) OR "
-            "(target_listing_id IS NULL AND target_user_id IS NOT NULL)",
+            "(target_listing_id IS NOT NULL AND target_user_id IS NULL AND target_review_id IS NULL) OR "
+            "(target_listing_id IS NULL AND target_user_id IS NOT NULL AND target_review_id IS NULL) OR "
+            "(target_listing_id IS NULL AND target_user_id IS NULL AND target_review_id IS NOT NULL)",
             name="ck_moderation_actions_single_target",
         ),
     )
@@ -76,6 +78,13 @@ class ModerationAction(Base):
         ),
         nullable=True,
     )
+    target_review_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "reviews.id", ondelete="RESTRICT", name="fk_moderation_actions_review_id"
+        ),
+        nullable=True,
+    )
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     # Attribute aliased: `metadata` is reserved by Declarative; the column
     # stays canonically named `metadata`.
@@ -101,5 +110,10 @@ Index(
 Index(
     "ix_moderation_actions_admin_created",
     ModerationAction.admin_id,
+    ModerationAction.created_at.desc(),
+)
+Index(
+    "ix_moderation_actions_review_created",
+    ModerationAction.target_review_id,
     ModerationAction.created_at.desc(),
 )

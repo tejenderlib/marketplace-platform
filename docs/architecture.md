@@ -31,3 +31,11 @@ File storage and payment handling will use provider interfaces. Phase 1 includes
 Configuration comes from environment variables. `.env.example` documents safe development defaults, while `.env` is ignored by Git. Backend tools locate the repository-root `.env` when run from nested API directories; Compose injects the same settings into containers. PostgreSQL connection URLs are assembled by the backend from separate host, port, database, user, and secret password values so URL-special password characters are handled safely.
 
 The development CORS allowlist is configured through `CORS_ORIGINS` and defaults to `http://localhost:5173`; credentialed wildcard origins are not allowed. Alembic migration scripts live in `apps/api/app/db/migrations` and use the shared `Base.metadata`. Compose runs `alembic upgrade head` before starting the API.
+
+## Documentation index
+
+- [DECISIONS.md](DECISIONS.md) — architecture & engineering decision record
+- [FLOW.md](FLOW.md) — system and business flows
+- [PHASES.md](PHASES.md) — phase roadmap and history
+- [PROJECT_STATUS.md](PROJECT_STATUS.md) — current project status
+- [AI_CHANGELOG.md](AI_CHANGELOG.md) — AI-assisted development history

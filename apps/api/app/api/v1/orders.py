@@ -11,14 +11,32 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.catalog.models import Listing, ListingStatus
+from app.core.config import get_settings
 from app.db.session import get_db_session
-from app.identity.dependencies import require_authenticated_user
+from app.identity.dependencies import require_active_user, require_authenticated_user
 from app.identity.models import User
-from app.orders.models import Order, OrderSource, OrderStatus, Payment, PaymentProvider, PaymentStatus
+from app.notifications.models import NotificationType
+from app.notifications.service import notify
+from app.orders.models import (
+    Order,
+    OrderSource,
+    OrderStatus,
+    Payment,
+    PaymentProvider,
+    PaymentStatus,
+    Shipment,
+    ShipmentStatus,
+)
 from app.orders.provider import get_provider
 from app.trading.models import Auction, AuctionResult, AuctionResultStatus, AuctionStatus, Bid
 from app.orders.schemas import OrderOut, OrderPaymentResponse, PaginatedOrders, PaymentOut, PaymentRequest
-from app.orders.views import record_history, serialize_many, serialize_order
+from app.orders.views import (
+    cancel_order,
+    record_history,
+    release_expired_order,
+    serialize_many,
+    serialize_order,
+)
 
 router = APIRouter(tags=["orders"])
 
@@ -108,7 +126,7 @@ def my_orders(
     order_status: str | None = Query(default=None, alias="status"),
     limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> PaginatedOrders:
     """The authenticated buyer's orders, newest first."""
@@ -135,13 +153,16 @@ def my_orders(
 @router.get("/orders/{order_id}", response_model=OrderOut)
 def get_order(
     order_id: uuid.UUID,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> OrderOut:
     """Order detail for buyer, seller, or ADMIN."""
 
     order = _get_order_or_404(order_id, db)
     _check_order_visibility(order, user, db)
+    # Lazy expiry: a past-due PENDING_PAYMENT order flips to CANCELLED
+    # (with listing release) on first read, matching offer/result patterns.
+    release_expired_order(db, order)
     return serialize_order(db, order)
 
 
@@ -151,7 +172,7 @@ def seller_orders(
     listing_id: uuid.UUID | None = None,
     limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> PaginatedOrders:
     """Orders for the authenticated seller's listings only."""
@@ -181,7 +202,7 @@ def seller_orders(
 def pay_order(
     order_id: uuid.UUID,
     payload: PaymentRequest,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> OrderPaymentResponse:
     """Buyer pays: idempotent dummy processing with atomic state transitions."""
@@ -223,6 +244,36 @@ def pay_order(
             detail="Order already has a successful payment.",
         )
 
+    # Provider authority: simulated success/failure outcomes are a local
+    # development/test affordance. When the gate is closed (production),
+    # the client cannot force a payment outcome; the provider decides.
+    simulate = (
+        payload.simulate
+        if get_settings().payments_simulate_enabled
+        else "success"
+    )
+
+    # Expiry gate: a past-due unpaid order can never move money. The row
+    # lock is already held, so the flip is race-free against cancels.
+    if (
+        order.checkout_expires_at is not None
+        and order.checkout_expires_at <= datetime.now(timezone.utc)
+        and order.status in (OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_FAILED)
+    ):
+        cancel_order(
+            db,
+            order,
+            changed_by=None,
+            note="Checkout window expired; order cancelled and listing released.",
+            expired=True,
+        )
+        db.commit()
+        db.refresh(order)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Checkout window has expired; the order was cancelled.",
+        )
+
     if order.status == OrderStatus.PAYMENT_FAILED:
         # Retry re-arms the order; the listing must be reservable again.
         listing_for_retry = db.get(Listing, order.listing_id)
@@ -252,7 +303,7 @@ def pay_order(
         amount_minor=order.total_minor,
         currency=order.currency,
         status=PaymentStatus.CREATED,
-        simulated_outcome=payload.simulate,
+        simulated_outcome=simulate,
     )
     db.add(payment)
     db.flush()
@@ -272,7 +323,7 @@ def pay_order(
     result = get_provider(PaymentProvider.DUMMY).process(
         amount_minor=order.total_minor,
         currency=order.currency,
-        simulate=payload.simulate,
+        simulate=simulate,
     )
     now = datetime.now(timezone.utc)
     listing = db.get(Listing, order.listing_id)
@@ -316,6 +367,157 @@ def pay_order(
         ) from error
     db.refresh(payment)
     db.refresh(order)
+    if result.ok:
+        notify(
+            db,
+            user_id=order.buyer_id,
+            actor_id=user.id,
+            type=NotificationType.PAYMENT_SUCCEEDED,
+            title="Payment successful",
+            body=f"Your payment of ₹{order.total_minor:,} for \"{order.listing_title_snapshot}\" succeeded.",
+            link="/orders",
+        )
     return OrderPaymentResponse(
         payment=PaymentOut.model_validate(payment), order=serialize_order(db, order)
     )
+
+
+def _require_order_seller(order: Order, user: User) -> None:
+    """Only the seller may perform fulfillment transitions."""
+
+    if order.seller_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the seller may update fulfillment on this order.",
+        )
+
+
+@router.post("/orders/{order_id}/cancel", response_model=OrderOut)
+def cancel_order_endpoint(
+    order_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: Session = Depends(get_db_session),
+) -> OrderOut:
+    """Buyer cancels their own unpaid order and releases the listing.
+
+    Only PENDING_PAYMENT (or PAYMENT_FAILED, before any retry re-arms it)
+    orders are cancellable: money or fulfillment must never be undone
+    here. The row lock races safely against payment and lazy expiry.
+    """
+
+    order = db.scalars(
+        select(Order).where(Order.id == order_id).with_for_update()
+    ).first()
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Order not found."
+        )
+    if order.buyer_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the buyer owning the order may cancel it.",
+        )
+    if order.status not in (OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_FAILED):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Order is {order.status.value}; only unpaid orders can be cancelled.",
+        )
+    # A past-due order is expired, not buyer-cancelled: use the same
+    # terminal state but keep the expiry note for accurate history.
+    expired = (
+        order.checkout_expires_at is not None
+        and order.checkout_expires_at <= datetime.now(timezone.utc)
+    )
+    cancel_order(
+        db,
+        order,
+        changed_by=user.id,
+        note=(
+            "Checkout window expired; order cancelled and listing released."
+            if expired
+            else "Buyer cancelled the unpaid order; listing released."
+        ),
+        expired=expired,
+    )
+    db.commit()
+    db.refresh(order)
+    return serialize_order(db, order)
+
+
+@router.post("/orders/{order_id}/ship", response_model=OrderOut)
+def ship_order(
+    order_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: Session = Depends(get_db_session),
+) -> OrderOut:
+    """Seller marks a PAID order as SHIPPED and creates a shipment record."""
+
+    order = _get_order_or_404(order_id, db)
+    _require_order_seller(order, user)
+    if order.status != OrderStatus.PAID:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Order is {order.status.value}; only PAID orders can be shipped.",
+        )
+    now = datetime.now(timezone.utc)
+    order.status = OrderStatus.SHIPPED
+    db.add(
+        Shipment(
+            order_id=order.id,
+            status=ShipmentStatus.SHIPPED,
+            shipped_at=now,
+        )
+    )
+    record_history(db, order, OrderStatus.PAID, OrderStatus.SHIPPED,
+                   user.id, "Seller shipped the order.")
+    db.commit()
+    db.refresh(order)
+    notify(
+        db,
+        user_id=order.buyer_id,
+        actor_id=user.id,
+        type=NotificationType.ORDER_SHIPPED,
+        title="Order shipped",
+        body=f"Your order \"{order.listing_title_snapshot}\" has been shipped.",
+        link="/orders",
+    )
+    return serialize_order(db, order)
+
+
+@router.post("/orders/{order_id}/deliver", response_model=OrderOut)
+def deliver_order(
+    order_id: uuid.UUID,
+    user: User = Depends(require_active_user),
+    db: Session = Depends(get_db_session),
+) -> OrderOut:
+    """Seller marks a SHIPPED order as DELIVERED."""
+
+    order = _get_order_or_404(order_id, db)
+    _require_order_seller(order, user)
+    if order.status != OrderStatus.SHIPPED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Order is {order.status.value}; only SHIPPED orders can be delivered.",
+        )
+    now = datetime.now(timezone.utc)
+    order.status = OrderStatus.DELIVERED
+    shipment = db.scalars(
+        select(Shipment).where(Shipment.order_id == order.id).order_by(Shipment.created_at.desc(), Shipment.id.desc())
+    ).first()
+    if shipment is not None:
+        shipment.status = ShipmentStatus.DELIVERED
+        shipment.delivered_at = now
+    record_history(db, order, OrderStatus.SHIPPED, OrderStatus.DELIVERED,
+                   user.id, "Seller delivered the order.")
+    db.commit()
+    db.refresh(order)
+    notify(
+        db,
+        user_id=order.buyer_id,
+        actor_id=user.id,
+        type=NotificationType.ORDER_DELIVERED,
+        title="Order delivered",
+        body=f"Your order \"{order.listing_title_snapshot}\" has been delivered. Rate and review your purchase!",
+        link="/orders",
+    )
+    return serialize_order(db, order)

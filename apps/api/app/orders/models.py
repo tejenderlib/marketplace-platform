@@ -184,7 +184,14 @@ class Order(Base):
 
     __tablename__ = "orders"
     __table_args__ = (
-        UniqueConstraint("listing_id", name="uq_orders_listing_id"),
+        # One *live* order per listing: CANCELLED rows (buyer cancel or
+        # checkout-window expiry) free the listing for a fresh purchase.
+        Index(
+            "uq_orders_listing_id",
+            "listing_id",
+            unique=True,
+            postgresql_where=text("status <> 'CANCELLED'"),
+        ),
         UniqueConstraint("accepted_offer_id", name="uq_orders_accepted_offer_id"),
         UniqueConstraint("auction_result_id", name="uq_orders_auction_result_id"),
         CheckConstraint(
@@ -221,6 +228,7 @@ class Order(Base):
         Index("ix_orders_seller_id", "seller_id"),
         Index("ix_orders_listing_id", "listing_id"),
         Index("ix_orders_status", "status"),
+        Index("ix_orders_checkout_expires_at", "checkout_expires_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -269,6 +277,11 @@ class Order(Base):
         nullable=False,
         default=OrderStatus.PENDING_PAYMENT,
         server_default="PENDING_PAYMENT",
+    )
+    # Deadline for completing payment; past-due PENDING_PAYMENT orders are
+    # lazily cancelled and their listing reservation released.
+    checkout_expires_at: Mapped[datetime | None] = mapped_column(
+        Timestamptz, nullable=True
     )
     paid_at: Mapped[datetime | None] = mapped_column(Timestamptz, nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(Timestamptz, nullable=True)

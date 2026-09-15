@@ -24,6 +24,11 @@ import PaymentPage from "./pages/Payment.jsx";
 import AuctionCheckoutPage from "./pages/AuctionCheckout.jsx";
 import OfferCheckoutPage from "./pages/OfferCheckout.jsx";
 import { OrdersPage, OrderDetailPage } from "./pages/Orders.jsx";
+import NotificationsPage from "./pages/NotificationsPage.jsx";
+import MessagesPage from "./pages/Messages.jsx";
+import SupportPage from "./pages/Support.jsx";
+import SupportDetailPage from "./pages/SupportDetail.jsx";
+import ReportsPage from "./pages/Reports.jsx";
 
 const PAGE_SIZE = 12;
 
@@ -40,6 +45,12 @@ function parseRoute() {
   if (window.location.hash.startsWith("#/register")) return { page: "register" };
   if (window.location.hash.startsWith("#/favorites")) return { page: "favorites" };
   if (window.location.hash.startsWith("#/profile")) return { page: "profile" };
+  if (window.location.hash.startsWith("#/notifications")) return { page: "notifications" };
+  if (window.location.hash.startsWith("#/messages")) return { page: "messages" };
+  if (window.location.hash.startsWith("#/reports")) return { page: "reports" };
+  const supportMatch = window.location.hash.match(/^#\/support\/([\w-]+)/);
+  if (supportMatch) return { page: "support-detail", id: supportMatch[1] };
+  if (window.location.hash.startsWith("#/support")) return { page: "support" };
   if (window.location.hash.startsWith("#/seller/offers")) return { page: "seller-offers" };
   const sellerProfile = window.location.hash.match(/^#\/seller\/([\w-]+)/);
   if (sellerProfile) return { page: "seller", id: sellerProfile[1] };
@@ -277,6 +288,46 @@ export default function App() {
     return (
       <div className="app">
         <OrderDetailPage id={route.id} />
+      </div>
+    );
+  }
+
+  if (route.page === "notifications") {
+    return (
+      <div className="app">
+        <NotificationsPage />
+      </div>
+    );
+  }
+
+  if (route.page === "messages") {
+    return (
+      <div className="app">
+        <MessagesPage />
+      </div>
+    );
+  }
+
+  if (route.page === "reports") {
+    return (
+      <div className="app">
+        <ReportsPage />
+      </div>
+    );
+  }
+
+  if (route.page === "support") {
+    return (
+      <div className="app">
+        <SupportPage />
+      </div>
+    );
+  }
+
+  if (route.page === "support-detail") {
+    return (
+      <div className="app">
+        <SupportDetailPage id={route.id} />
       </div>
     );
   }

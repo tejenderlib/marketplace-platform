@@ -51,6 +51,8 @@ def register(email):
         "POST", "/auth/register", {"email": email, "password": "Catalog123"}
     )
     assert status == 201, (status, body)
+    # Phase 8: marketplace actions require a verified (ACTIVE) account.
+    call("POST", "/auth/verify-email", {"token": body["verification_token"]})
     status, login = call("POST", "/auth/login", {"email": email, "password": "Catalog123"})
     assert status == 200, (status, login)
     return body["id"], login["access_token"]

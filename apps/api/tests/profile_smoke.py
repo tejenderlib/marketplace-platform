@@ -44,10 +44,13 @@ def check(label, condition, detail=""):
 
 
 def main():
-    tag = uuid.uuid4().hex[:8]
-    email = f"prof-{tag}@example.com"
-    status, _ = call("POST", "/auth/register", {"email": email, "password": "Prof12345"})
+    main_tag = uuid.uuid4().hex[:8]
+    email = f"prof-{main_tag}@example.com"
+    status, reg = call("POST", "/auth/register", {"email": email, "password": "Prof12345"})
     assert status == 201, (status,)
+    # Phase 8: marketplace actions require a verified (ACTIVE) account.
+    status, _ = call("POST", "/auth/verify-email", {"token": reg["verification_token"]})
+    assert status == 200, (status,)
     status, login = call("POST", "/auth/login", {"email": email, "password": "Prof12345"})
     assert status == 200, (status, login)
     tok = login["access_token"]

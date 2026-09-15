@@ -5,6 +5,7 @@ import { createOffer } from "../api/offers.js";
 import AuctionPanel from "./AuctionPanel.jsx";
 import ListingCard from "./ListingCard.jsx";
 import OfferModal from "./OfferModal.jsx";
+import ReportModal from "./ReportModal.jsx";
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -26,9 +27,22 @@ export default function ListingDetail({
 }) {
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerDone, setOfferDone] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const galleryCount = Math.max(1, listing.imageCount);
   const isOwnListing =
     isAuthenticated && currentUserId != null && currentUserId === listing.sellerId;
+
+  function messageSeller() {
+    if (!isAuthenticated) {
+      onRequireLogin();
+      return;
+    }
+    if (!listing.sellerId) {
+      onPlaceholder("Messaging");
+      return;
+    }
+    window.location.hash = `#/messages?listing=${listing.id}&recipient=${listing.sellerId}`;
+  }
 
   async function submitOffer({ amount_minor, message, expires_at }) {
     const created = await createOffer(authFetch, {
@@ -202,7 +216,28 @@ export default function ListingDetail({
                 View Profile
               </button>
             )}
+            {listing.sellerId && !isOwnListing && (
+              <>
+                <button type="button" className="btn btn-ghost btn-block" onClick={messageSeller}>
+                  Message {listing.sellerName.split(" ")[0] || "Seller"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-block btn-report"
+                  onClick={() => setReportOpen(true)}
+                >
+                  Report this listing
+                </button>
+              </>
+            )}
           </div>
+          {reportOpen && (
+            <ReportModal
+              targetType="listing"
+              targetId={listing.id}
+              onClose={() => setReportOpen(false)}
+            />
+          )}
         </aside>
       </div>
 

@@ -1,3 +1,5 @@
+import NotificationBell from "./NotificationBell.jsx";
+
 export default function Header({
   query,
   onQueryChange,
@@ -49,6 +51,10 @@ export default function Header({
               <a className="btn btn-ghost" href="#/seller/offers">
                 Seller Offers
               </a>
+              <a className="btn btn-ghost" href="#/messages">
+                Messages
+              </a>
+              <NotificationBell />
               <button type="button" className="btn btn-ghost" onClick={onOrders}>
                 My Orders
               </button>

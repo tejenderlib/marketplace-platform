@@ -21,8 +21,10 @@ from sqlalchemy.orm import Session
 
 from app.catalog.models import Listing, ListingSaleType, ListingStatus
 from app.db.session import get_db_session
-from app.identity.dependencies import require_authenticated_user
+from app.identity.dependencies import require_active_user, require_authenticated_user
 from app.identity.models import User, UserProfile
+from app.notifications.models import NotificationType
+from app.notifications.service import notify
 from app.trading.dependencies import (
     get_offer_or_404,
     require_offer_party,
@@ -136,7 +138,7 @@ def _serialize_one(db: Session, offer: Offer) -> OfferOut:
 @router.post("", response_model=OfferOut, status_code=status.HTTP_201_CREATED)
 def create_offer(
     payload: OfferCreate,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> OfferOut:
     """Buyer creates a PENDING offer on an ACTIVE FIXED_PRICE listing."""
@@ -207,6 +209,15 @@ def create_offer(
             detail="You already have a pending offer on this listing.",
         ) from error
     db.refresh(offer)
+    notify(
+        db,
+        user_id=listing.seller_id,
+        actor_id=user.id,
+        type=NotificationType.OFFER_RECEIVED,
+        title="New offer on your listing",
+        body=f"Buyer offered ₹{offer.amount_minor:,} on \"{listing.title}\".",
+        link="/offers",
+    )
     return _serialize_one(db, offer)
 
 
@@ -216,7 +227,7 @@ def my_offers(
     listing_id: uuid.UUID | None = None,
     limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> PaginatedOffers:
     """The authenticated buyer's offers, paginated and filterable."""
@@ -262,7 +273,7 @@ def respond_to_offer(
 ) -> OfferOut:
     """Seller/ADMIN decision on a PENDING offer. Row-locked against races."""
 
-    offer, _ = party
+    offer, listing = party
     db.refresh(offer, with_for_update=True)
     if _expire_if_due(db, offer):
         raise HTTPException(
@@ -285,18 +296,50 @@ def respond_to_offer(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Offer is already {offer.status.value}; only PENDING offers can be answered.",
         )
+    if decision == OfferStatus.ACCEPTED:
+        # Accepting an offer takes the listing off the market for this
+        # buyer's checkout window: the listing must still be reservable,
+        # and every other PENDING offer on the listing is rejected in the
+        # same locked transaction so at most one offer can ever be
+        # ACCEPTED/checked out per listing.
+        if listing.status != ListingStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Listing is {listing.status.value}; offers cannot be accepted.",
+            )
+        siblings = db.scalars(
+            select(Offer).where(
+                Offer.listing_id == offer.listing_id,
+                Offer.id != offer.id,
+                Offer.status == OfferStatus.PENDING,
+            ).with_for_update(skip_locked=True)
+        ).all()
+        now = _now()
+        for sibling in siblings:
+            sibling.status = OfferStatus.REJECTED
+            sibling.responded_at = now
     # Amount/buyer/listing history is immutable: only status/responded_at move.
     offer.status = decision
     offer.responded_at = _now()
     db.commit()
     db.refresh(offer)
+    if decision == OfferStatus.ACCEPTED:
+        notify(
+            db,
+            user_id=offer.buyer_id,
+            actor_id=listing.seller_id,
+            type=NotificationType.OFFER_ACCEPTED,
+            title="Your offer was accepted",
+            body=f"The seller accepted your offer of ₹{offer.amount_minor:,}.",
+            link="/offers",
+        )
     return _serialize_one(db, offer)
 
 
 @router.post("/{offer_id}/withdraw", response_model=OfferOut)
 def withdraw_offer(
     offer: Offer = Depends(get_offer_or_404),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> OfferOut:
     """Buyer withdraws their own PENDING offer."""
@@ -329,7 +372,7 @@ def seller_offers(
     listing_id: uuid.UUID | None = None,
     limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> PaginatedOffers:
     """Offers received on the authenticated seller's own listings only."""

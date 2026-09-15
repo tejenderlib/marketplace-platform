@@ -2,11 +2,16 @@ import { useEffect, useState } from "react";
 
 import { ApiError } from "../api/client.js";
 import { fetchListings, fetchPublicProfile, normalizeListing } from "../api/catalog.js";
+import { useAuth } from "../auth/AuthContext.jsx";
 import ListingCard from "../components/ListingCard.jsx";
+import ReportModal from "../components/ReportModal.jsx";
+import ReviewsSection from "../components/ReviewsSection.jsx";
 
 export default function SellerProfilePage({ userId }) {
+  const { isAuthenticated, authFetch } = useAuth();
   const [state, setState] = useState({ loading: true, error: null, profile: null });
   const [listings, setListings] = useState({ loading: true, items: [] });
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -76,8 +81,20 @@ export default function SellerProfilePage({ userId }) {
         <div>
           <h1>{displayName}</h1>
           {profile.location && <p className="muted">📍 {profile.location}</p>}
+          {isAuthenticated && (
+            <button type="button" className="btn btn-ghost btn-sm btn-report" onClick={() => setReportOpen(true)}>
+              Report this user
+            </button>
+          )}
         </div>
       </div>
+      {reportOpen && (
+        <ReportModal
+          targetType="user"
+          targetId={userId}
+          onClose={() => setReportOpen(false)}
+        />
+      )}
 
       <section className="section" aria-labelledby="seller-listings">
         <div className="section-head">
@@ -103,9 +120,7 @@ export default function SellerProfilePage({ userId }) {
         <div className="section-head">
           <h2 id="seller-reviews">Ratings &amp; Reviews</h2>
         </div>
-        <div className="empty-state">
-          <p>No reviews yet. Reviews will appear here once the ratings system launches.</p>
-        </div>
+        <ReviewsSection authFetch={authFetch} isAuthenticated={isAuthenticated} userId={userId} />
       </section>
     </div>
   );

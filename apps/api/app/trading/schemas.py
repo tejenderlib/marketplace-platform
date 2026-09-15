@@ -7,6 +7,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.limits import MAX_MONEY_MINOR
+
 
 class ListingRef(BaseModel):
     id: uuid.UUID
@@ -52,7 +54,7 @@ class OfferCreate(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     listing_id: uuid.UUID
-    amount_minor: int = Field(gt=0)
+    amount_minor: int = Field(gt=0, le=MAX_MONEY_MINOR)
     currency: str
     message: str | None = Field(default=None, max_length=2000)
     expires_at: datetime | None = None
@@ -70,10 +72,10 @@ class AuctionCreate(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     listing_id: uuid.UUID
-    starting_bid_minor: int = Field(gt=0)
-    minimum_increment_minor: int = Field(gt=0)
+    starting_bid_minor: int = Field(gt=0, le=MAX_MONEY_MINOR)
+    minimum_increment_minor: int = Field(gt=0, le=MAX_MONEY_MINOR)
     currency: str
-    reserve_minor: int | None = Field(default=None, ge=0)
+    reserve_minor: int | None = Field(default=None, ge=0, le=MAX_MONEY_MINOR)
     starts_at: datetime
     ends_at: datetime
 
@@ -117,7 +119,7 @@ class BidCreate(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    amount_minor: int = Field(gt=0)
+    amount_minor: int = Field(gt=0, le=MAX_MONEY_MINOR)
     currency: str
     request_id: uuid.UUID
 

@@ -6,6 +6,7 @@ import { myOrders } from "../api/checkout.js";
 import { myOffers } from "../api/offers.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import ListingCard from "../components/ListingCard.jsx";
+import ReviewsSection from "../components/ReviewsSection.jsx";
 import { normalizeListing } from "../api/catalog.js";
 
 function formatDateTime(value) {
@@ -274,8 +275,20 @@ export default function ProfilePage() {
         <div className="section-head">
           <h2 id="profile-reviews">Ratings &amp; Reviews</h2>
         </div>
-        <div className="empty-state">
-          <p>No reviews yet. Reviews will appear here once the ratings system launches.</p>
+        <ReviewsSection authFetch={authFetch} isAuthenticated={isAuthenticated} userId={user?.id} />
+      </section>
+
+      <section className="section" aria-labelledby="profile-links">
+        <div className="section-head">
+          <h2 id="profile-links">Quick Links</h2>
+        </div>
+        <div className="detail-card">
+          <div className="card-actions">
+            <a className="btn btn-ghost btn-sm" href="#/notifications">Notifications</a>
+            <a className="btn btn-ghost btn-sm" href="#/messages">Messages</a>
+            <a className="btn btn-ghost btn-sm" href="#/reports">My Reports</a>
+            <a className="btn btn-ghost btn-sm" href="#/support">Support</a>
+          </div>
         </div>
       </section>
 

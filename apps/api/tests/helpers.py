@@ -39,8 +39,11 @@ def ensure_admin(tag, prefix="adm"):
     from app.db.session import SessionLocal
 
     email = f"{prefix}-{tag}@example.com"
-    status, _ = call("POST", "/auth/register", {"email": email, "password": "Admin1234"})
+    status, body = call("POST", "/auth/register", {"email": email, "password": "Admin1234"})
     assert status in (200, 201), (status, email)
+    # Phase 8: marketplace/admin actions require a verified (ACTIVE) account.
+    status, _ = call("POST", "/auth/verify-email", {"token": body["verification_token"]})
+    assert status == 200, (status, email)
     db = SessionLocal()
     try:
         role = db.execute(text("SELECT id FROM roles WHERE name = 'ADMIN'")).scalar()

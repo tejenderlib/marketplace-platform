@@ -9,6 +9,9 @@ import { ListingDetailPage, ListingsPage } from "./pages/Listings.jsx";
 import { ModerationDetailPage, ModerationPage } from "./pages/Moderation.jsx";
 import { OrderDetailPage, OrdersPage } from "./pages/Orders.jsx";
 import PaymentsPage from "./pages/Payments.jsx";
+import { ReportDetailPage, ReportsPage } from "./pages/Reports.jsx";
+import { ReviewsPage } from "./pages/Reviews.jsx";
+import { SupportDetailPage as AdminSupportDetailPage, SupportPage as AdminSupportPage } from "./pages/Support.jsx";
 import { UserDetailPage, UsersPage } from "./pages/Users.jsx";
 import "./admin.css";
 
@@ -19,10 +22,13 @@ const NAV = [
   ["orders", "Orders", "#/admin/orders"],
   ["auctions", "Auctions", "#/admin/auctions"],
   ["payments", "Payments", "#/admin/payments"],
+  ["reviews", "Reviews", "#/admin/reviews"],
   ["moderation", "Moderation", "#/admin/moderation"],
+  ["reports", "Reports", "#/admin/reports"],
+  ["support", "Support", "#/admin/support"],
 ];
 
-const FUTURE = ["Reports", "Support"];
+const FUTURE = [];
 
 function LoginForm({ onDone, initialError }) {
   const [email, setEmail] = useState("");
@@ -170,13 +176,17 @@ export default function AdminApp({ route }) {
               </li>
             ))}
           </ul>
-          <p className="sidebar-heading">Coming soon</p>
-          <ul>
-            {FUTURE.map((label) => (
-              <li key={label}><span className="sidebar-soon">{label}</span></li>
-            ))}
-          </ul>
-          <p className="sidebar-foot"><a href="#/">← Marketplace</a></p>
+          {FUTURE.length > 0 && (
+          <>
+            <p className="sidebar-heading">Coming soon</p>
+            <ul>
+              {FUTURE.map((label) => (
+                <li key={label}><span className="sidebar-soon">{label}</span></li>
+              ))}
+            </ul>
+          </>
+        )}
+        <p className="sidebar-foot"><a href="#/">← Marketplace</a></p>
         </nav>
 
         <main className="admin-content">
@@ -186,8 +196,11 @@ export default function AdminApp({ route }) {
           {section === "orders" && (activeId ? <OrderDetailPage id={activeId} /> : <OrdersPage />)}
           {section === "auctions" && (activeId ? <AuctionDetailPage id={activeId} /> : <AuctionsPage />)}
           {section === "payments" && <PaymentsPage />}
+          {section === "reviews" && <ReviewsPage />}
           {section === "moderation" && (activeId ? <ModerationDetailPage id={activeId} /> : <ModerationPage />)}
-          {!["dashboard", "users", "listings", "orders", "auctions", "payments", "moderation"].includes(section) && (
+          {section === "reports" && (activeId ? <ReportDetailPage id={activeId} /> : <ReportsPage />)}
+          {section === "support" && (activeId ? <AdminSupportDetailPage id={activeId} /> : <AdminSupportPage />)}
+          {!["dashboard", "users", "listings", "orders", "auctions", "payments", "reviews", "moderation", "reports", "support"].includes(section) && (
             <ErrorState message="Unknown admin section." />
           )}
         </main>

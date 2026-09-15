@@ -52,11 +52,22 @@ from app.catalog.schemas import (
     SellerSummary,
 )
 from app.db.session import get_db_session
-from app.identity.dependencies import require_authenticated_user
+from app.identity.dependencies import (
+    get_optional_current_user,
+    require_active_user,
+    require_authenticated_user,
+)
 from app.identity.models import User, UserProfile
 from app.trading.models import Auction
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
+
+# Listing statuses visible through public detail/list endpoints. All
+# other statuses (DRAFT, PENDING_REVIEW, REJECTED, REMOVED, ARCHIVED)
+# are only reachable by the seller (their /mine route) or ADMIN.
+_PUBLIC_LISTING_STATUSES = frozenset(
+    {ListingStatus.ACTIVE, ListingStatus.RESERVED, ListingStatus.SOLD}
+)
 
 _DEFAULT_LIMIT = 20
 _MAX_LIMIT = 100
@@ -286,7 +297,7 @@ def my_listings(
     sale_type: str | None = None,
     limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> PaginatedListings:
     """Authenticated seller's own listings (all statuses, drafts included)."""
@@ -319,10 +330,25 @@ def my_listings(
 @router.get("/listings/{listing_id}", response_model=ListingOut)
 def get_listing(
     listing: Listing = Depends(get_listing_or_404),
+    user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db_session),
 ) -> ListingOut:
-    """Public listing detail, with auction summary for AUCTION listings."""
+    """Public listing detail, with auction summary for AUCTION listings.
 
+    Visibility rule: only ACTIVE (and other publicly viewable) listings
+    are served. Non-public statuses (DRAFT, PENDING_REVIEW, REJECTED,
+    REMOVED, ARCHIVED) are 404 for everyone except the listing's seller
+    and ADMIN users, who keep legitimate access through this same route
+    while managing their listings.
+    """
+
+    if listing.status not in _PUBLIC_LISTING_STATUSES:
+        is_owner = user is not None and user.id == listing.seller_id
+        is_admin_user = user is not None and is_admin(db, user)
+        if not (is_owner or is_admin_user):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found."
+            )
     db.refresh(listing, attribute_names=["category", "images"])
     names = _display_names(db, {listing.seller_id})
     auction = None
@@ -336,7 +362,7 @@ def get_listing(
 @router.post("/listings", response_model=ListingOut, status_code=status.HTTP_201_CREATED)
 def create_listing(
     payload: ListingCreate,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> ListingOut:
     """Create a DRAFT listing owned by the authenticated user (seller never from client)."""
@@ -392,7 +418,7 @@ def create_listing(
 def update_listing(
     payload: ListingUpdate,
     listing: Listing = Depends(require_listing_owner_or_admin),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> ListingOut:
     """Owner-or-ADMIN edit. Sellers follow the lifecycle map; ADMIN is unrestricted."""
@@ -456,7 +482,7 @@ def update_listing(
 @router.post("/listings/{listing_id}/submit", response_model=ListingOut)
 def submit_listing(
     listing_id: uuid.UUID,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> ListingOut:
     """Owner submits a DRAFT for review.
@@ -684,10 +710,15 @@ def remove_image(
 )
 def favorite_listing(
     listing: Listing = Depends(get_listing_or_404),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> FavoriteOut:
-    """Favorite a listing; the composite key yields 409 on duplicates."""
+    """Favorite a publicly viewable listing; the composite key yields 409 on duplicates."""
+
+    if listing.status not in _PUBLIC_LISTING_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found."
+        )
 
     favorite = Favorite(user_id=user.id, listing_id=listing.id)
     db.add(favorite)
@@ -706,7 +737,7 @@ def favorite_listing(
 @router.delete("/listings/{listing_id}/favorite")
 def unfavorite_listing(
     listing: Listing = Depends(get_listing_or_404),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> dict[str, str]:
     """Remove a favorite row entirely (canonical favorites carry no status)."""
@@ -728,7 +759,7 @@ def unfavorite_listing(
 
 @router.get("/favorites", response_model=list[FavoriteOut])
 def list_favorites(
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> list[FavoriteOut]:
     """The authenticated user's favorites with listing summaries."""

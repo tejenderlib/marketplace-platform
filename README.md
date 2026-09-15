@@ -72,9 +72,11 @@ and open the admin panel at `http://localhost:5173/#/admin`.
 ```text
 apps/api/       FastAPI modular-monolith backend
 apps/web/       React + Vite frontend
-docs/           Architecture and development documentation
+docs/           Project documentation (decisions, flows, phases, status)
 infra/          Reserved for reusable infrastructure assets
 compose.yaml    Local development stack
 ```
 
-See [architecture.md](docs/architecture.md) for boundaries and future-ready integration seams.
+See [architecture.md](docs/architecture.md) for boundaries and future-ready
+integration seams, [DECISIONS.md](docs/DECISIONS.md) for the decision
+record, and [FLOW.md](docs/FLOW.md) for system and business flows.

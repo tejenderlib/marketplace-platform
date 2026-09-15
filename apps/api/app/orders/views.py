@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.catalog.models import Listing
+from app.catalog.models import Listing, ListingStatus
 from app.identity.models import UserProfile
 from app.orders.models import (
     Order,
@@ -24,6 +25,7 @@ from app.orders.schemas import (
     PaymentOut,
     ShippingSnapshotOut,
 )
+from app.trading.models import AuctionResult, AuctionResultStatus
 
 
 def display_names(db: Session, user_ids: set[uuid.UUID]) -> dict[uuid.UUID, str | None]:
@@ -57,6 +59,77 @@ def record_history(
             note=note,
         )
     )
+
+
+def _restore_listing(db: Session, order: Order) -> None:
+    """Release the order's listing reservation (RESERVED -> ACTIVE).
+
+    Only a RESERVED listing is restored: any other status means the
+    listing moved on (SOLD, removed by moderation, re-listed) and must
+    not be overwritten.
+    """
+
+    listing = db.get(Listing, order.listing_id)
+    if listing is not None and listing.status == ListingStatus.RESERVED:
+        listing.status = ListingStatus.ACTIVE
+
+
+_UNPAID_STATUSES = (OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_FAILED)
+
+
+def release_expired_order(db: Session, order: Order) -> bool:
+    """Lazily cancel an abandoned unpaid order past its checkout window.
+
+    Pattern matches offer/auction-result lazy expiry: no scheduler; the
+    flip happens whenever a read or action touches the order. Safe to
+    call without a row lock on read paths (the state transition itself
+    re-verifies under lock in mutating paths). Returns True if flipped.
+    """
+
+    if (
+        order.status not in _UNPAID_STATUSES
+        or order.checkout_expires_at is None
+        or order.checkout_expires_at > datetime.now(timezone.utc)
+    ):
+        return False
+    # Re-check under row lock so a concurrent payment/cancel wins cleanly.
+    locked = db.scalars(
+        select(Order).where(Order.id == order.id).with_for_update()
+    ).first()
+    if locked is None or locked.status not in _UNPAID_STATUSES:
+        return False
+    cancel_order(
+        db,
+        locked,
+        changed_by=None,
+        note="Checkout window expired; order cancelled and listing released.",
+        expired=True,
+    )
+    db.commit()
+    db.refresh(order)
+    return True
+
+
+def cancel_order(
+    db: Session,
+    order: Order,
+    changed_by: uuid.UUID | None,
+    note: str,
+    expired: bool = False,
+) -> None:
+    """Shared buyer-cancel/abandon transition. Caller holds the row lock
+    and has already verified PENDING_PAYMENT; caller commits."""
+
+    from_status = order.status
+    order.status = OrderStatus.CANCELLED
+    order.cancelled_at = datetime.now(timezone.utc)
+    _restore_listing(db, order)
+    if order.source.value == "AUCTION_WIN" and order.auction_result_id is not None:
+        # Same terminal result state the checkout-window expiry uses.
+        result = db.get(AuctionResult, order.auction_result_id)
+        if result is not None and result.status == AuctionResultStatus.ORDER_CREATED:
+            result.status = AuctionResultStatus.PAYMENT_EXPIRED
+    record_history(db, order, from_status, OrderStatus.CANCELLED, changed_by, note)
 
 
 def serialize_order(db: Session, order: Order) -> OrderOut:
@@ -95,6 +168,7 @@ def serialize_order(db: Session, order: Order) -> OrderOut:
         shipping_minor=order.shipping_minor,
         total_minor=order.total_minor,
         status=order.status.value,
+        checkout_expires_at=order.checkout_expires_at,
         paid_at=order.paid_at,
         cancelled_at=order.cancelled_at,
         created_at=order.created_at,

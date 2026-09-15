@@ -3,7 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../api/client.js";
 import { formatPrice } from "../data/listings.js";
 import { getOrder, myOrders } from "../api/checkout.js";
+import { createReview } from "../api/reviews.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import ReviewModal from "../components/ReviewModal.jsx";
+import { useReviewedOrders } from "../hooks/useReviewedOrders.js";
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -16,6 +19,9 @@ export function OrdersPage() {
   const { isAuthenticated, authFetch, redirectToLogin } = useAuth();
   const [offset, setOffset] = useState(0);
   const [state, setState] = useState({ loading: true, error: null, items: [], total: 0 });
+  const [reviewTarget, setReviewTarget] = useState(null);
+  const [reviewNote, setReviewNote] = useState(null);
+  const { reviewedIds, markReviewed } = useReviewedOrders();
 
   const load = useCallback(async () => {
     setState({ loading: true, error: null, items: [], total: 0 });
@@ -40,6 +46,22 @@ export function OrdersPage() {
     load();
   }, [isAuthenticated, load, redirectToLogin]);
 
+  async function submitReview(payload) {
+    try {
+      await createReview(authFetch, payload);
+      markReviewed(payload.order_id);
+      setReviewTarget(null);
+      setReviewNote("Thanks! Your review has been submitted.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        markReviewed(payload.order_id);
+        setReviewTarget(null);
+        setReviewNote("This order is already reviewed.");
+      }
+      throw err;
+    }
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="content">
@@ -54,6 +76,11 @@ export function OrdersPage() {
   return (
     <div className="content">
       <h1>My Orders</h1>
+      {reviewNote && (
+        <p className="form-ok" role="status">
+          {reviewNote}
+        </p>
+      )}
       {state.loading && <p className="muted" role="status">Loading orders…</p>}
       {state.error && (
         <div className="empty-state" role="alert">
@@ -78,6 +105,7 @@ export function OrdersPage() {
                   <th>Seller</th>
                   <th>Total</th>
                   <th>Status</th>
+                  <th>Review</th>
                   <th>Ordered</th>
                 </tr>
               </thead>
@@ -89,6 +117,26 @@ export function OrdersPage() {
                     <td>{order.seller?.display_name ?? "—"}</td>
                     <td>{formatPrice(order.total_minor)}</td>
                     <td><span className="pill">{order.status}</span></td>
+                    <td>
+                      {order.status === "DELIVERED" ? (
+                        reviewedIds.has(order.id) ? (
+                          <span className="status-pill status-reviewed">Reviewed</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => {
+                              setReviewNote(null);
+                              setReviewTarget(order);
+                            }}
+                          >
+                            Rate &amp; Review
+                          </button>
+                        )
+                      ) : (
+                        <span className="muted small">—</span>
+                      )}
+                    </td>
                     <td>{formatDateTime(order.created_at)}</td>
                   </tr>
                 ))}
@@ -106,13 +154,24 @@ export function OrdersPage() {
           </div>
         </>
       )}
+      {reviewTarget && (
+        <ReviewModal
+          order={reviewTarget}
+          counterPartyName={reviewTarget.seller?.display_name ?? "this seller"}
+          onClose={() => setReviewTarget(null)}
+          onSubmit={submitReview}
+        />
+      )}
     </div>
   );
 }
 
 export function OrderDetailPage({ id }) {
-  const { isAuthenticated, authFetch, redirectToLogin } = useAuth();
+  const { isAuthenticated, authFetch, redirectToLogin, user } = useAuth();
   const [state, setState] = useState({ loading: true, error: null, order: null });
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewNote, setReviewNote] = useState(null);
+  const { reviewedIds, markReviewed } = useReviewedOrders();
 
   const load = useCallback(async () => {
     setState({ loading: true, error: null, order: null });
@@ -158,6 +217,24 @@ export function OrderDetailPage({ id }) {
 
   const order = state.order;
   const snap = order.shipping_snapshot;
+  const reviewed = reviewedIds.has(order.id);
+
+  async function submitReview(payload) {
+    try {
+      await createReview(authFetch, payload);
+      markReviewed(payload.order_id);
+      setReviewOpen(false);
+      setReviewNote("Thanks! Your review has been submitted.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        markReviewed(payload.order_id);
+        setReviewOpen(false);
+        setReviewNote("This order is already reviewed.");
+      }
+      throw err;
+    }
+  }
+
   return (
     <div className="content">
       <a className="back-link" href="#/orders">← My orders</a>
@@ -191,6 +268,20 @@ export function OrderDetailPage({ id }) {
               Continue to payment
             </a>
           ) : null}
+          <h2>Review</h2>
+          {reviewNote ? (
+            <p className="form-ok" role="status">{reviewNote}</p>
+          ) : order.status === "DELIVERED" ? (
+            reviewed ? (
+              <p className="muted small">You have reviewed this order.</p>
+            ) : (
+              <button type="button" className="btn btn-primary" onClick={() => setReviewOpen(true)}>
+                Rate &amp; Review
+              </button>
+            )
+          ) : (
+            <p className="muted small">Reviews unlock once the order is delivered.</p>
+          )}
         </div>
         <div className="detail-card">
           <h2>Delivery address (snapshot)</h2>
@@ -216,6 +307,17 @@ export function OrderDetailPage({ id }) {
           </ol>
         </div>
       </div>
+      {reviewOpen && (
+        <ReviewModal
+          order={order}
+          counterPartyName={
+            (order.buyer?.id === user?.id ? order.seller?.display_name : order.buyer?.display_name)
+            ?? "this order"
+          }
+          onClose={() => setReviewOpen(false)}
+          onSubmit={submitReview}
+        />
+      )}
     </div>
   );
 }

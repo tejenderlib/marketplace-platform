@@ -110,3 +110,15 @@ def hash_refresh_token(token: str) -> str:
     """Hash a refresh token for storage. The raw value is never persisted."""
 
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def generate_verification_token() -> str:
+    """Generate a high-entropy single-use email-verification token."""
+
+    return secrets.token_urlsafe(32)
+
+
+def hash_verification_token(token: str) -> str:
+    """Hash a verification token for storage (same policy as refresh tokens)."""
+
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

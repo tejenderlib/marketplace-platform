@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.catalog.models import Listing
 from app.db.session import get_db_session
-from app.identity.dependencies import require_authenticated_user
+from app.identity.dependencies import require_active_user, require_authenticated_user
 from app.identity.models import User
 from app.trading.models import Offer
 
@@ -39,7 +39,7 @@ def get_offer_listing(db: Session, offer: Offer) -> Listing:
 
 def require_offer_party(
     offer: Offer = Depends(get_offer_or_404),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> tuple[Offer, Listing]:
     """Allow the buyer, the listing seller, or ADMIN (detail views)."""
@@ -61,7 +61,7 @@ def require_offer_party(
 
 def require_offer_seller_or_admin(
     offer: Offer = Depends(get_offer_or_404),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> tuple[Offer, Listing]:
     """Allow the listing seller or ADMIN (respond path)."""

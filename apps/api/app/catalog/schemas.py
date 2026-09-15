@@ -5,7 +5,14 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.core.limits import (
+    ALLOWED_IMAGE_CONTENT_TYPES,
+    MAX_IMAGE_BYTES,
+    MAX_IMAGE_DIMENSION,
+    MAX_MONEY_MINOR,
+)
 
 
 class CategoryOut(BaseModel):
@@ -93,7 +100,7 @@ class ListingCreate(BaseModel):
     title: str = Field(min_length=3, max_length=180)
     description: str | None = Field(default=None, max_length=10000)
     condition: str
-    fixed_price_minor: int | None = Field(default=None, gt=0)
+    fixed_price_minor: int | None = Field(default=None, gt=0, le=MAX_MONEY_MINOR)
     currency: str
     offers_enabled: bool = False
     city: str = Field(min_length=2, max_length=120)
@@ -113,7 +120,7 @@ class ListingUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=3, max_length=180)
     description: str | None = Field(default=None, max_length=10000)
     condition: str | None = None
-    fixed_price_minor: int | None = Field(default=None, gt=0)
+    fixed_price_minor: int | None = Field(default=None, gt=0, le=MAX_MONEY_MINOR)
     currency: str | None = None
     offers_enabled: bool | None = None
     city: str | None = Field(default=None, min_length=2, max_length=120)
@@ -127,14 +134,33 @@ class ListingUpdate(BaseModel):
 
 
 class ImageCreate(BaseModel):
+    """Image metadata registration. The V1 API never receives file bytes.
+
+    Bounds mirror the storage policy the future object-store backend
+    must enforce on real uploads: allowlisted MIME types, a 10 MiB size
+    ceiling, and sane pixel dimensions. ``content_type`` is normalized
+    to lowercase to keep the allowlist exact.
+    """
+
     storage_key: str = Field(min_length=1, max_length=2000)
     content_type: str = Field(min_length=1, max_length=127)
-    byte_size: int = Field(gt=0)
-    width: int | None = Field(default=None, gt=0)
-    height: int | None = Field(default=None, gt=0)
+    byte_size: int = Field(gt=0, le=MAX_IMAGE_BYTES)
+    width: int | None = Field(default=None, gt=0, le=MAX_IMAGE_DIMENSION)
+    height: int | None = Field(default=None, gt=0, le=MAX_IMAGE_DIMENSION)
     alt_text: str | None = Field(default=None, max_length=255)
     sort_order: int | None = Field(default=None, ge=0)
     is_primary: bool = False
+
+    @field_validator("content_type")
+    @classmethod
+    def _check_content_type(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in ALLOWED_IMAGE_CONTENT_TYPES:
+            raise ValueError(
+                "Unsupported image type. Allowed: "
+                + ", ".join(sorted(ALLOWED_IMAGE_CONTENT_TYPES))
+            )
+        return normalized
 
 
 class ImageUpdate(BaseModel):

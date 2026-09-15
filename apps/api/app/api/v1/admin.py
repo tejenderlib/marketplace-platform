@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
@@ -38,10 +39,29 @@ from app.identity.models import (
     UserRole,
     UserStatus,
 )
+from app.notifications.models import NotificationType
+from app.notifications.service import notify
 from app.orders.models import Order, OrderSource, OrderStatus, Payment, PaymentProvider, PaymentStatus
 from app.orders.schemas import OrderOut, PaginatedOrders, PaymentOut
 from app.orders.views import serialize_many as serialize_orders_many
 from app.orders.views import serialize_order as serialize_single_order
+from app.reviews.models import Review, ReviewStatus
+from app.reviews.schemas import PaginatedReviews, ReviewOut
+from app.reports.models import Report, ReportStatus
+from app.reports.schemas import PaginatedReports, ReportOut, ReportStatusUpdate
+from app.support.models import (
+    SupportTicket,
+    SupportTicketMessage,
+    SupportTicketPriority,
+    SupportTicketStatus,
+)
+from app.support.schemas import (
+    PaginatedSupportTickets,
+    SupportMessageCreate,
+    SupportTicketMessageOut,
+    SupportTicketOut,
+    SupportTicketUpdate,
+)
 from app.trading.models import (
     Auction,
     AuctionResult,
@@ -521,6 +541,7 @@ def _audit(
     metadata: dict | None,
     target_user_id: uuid.UUID | None = None,
     target_listing_id: uuid.UUID | None = None,
+    target_review_id: uuid.UUID | None = None,
 ) -> ModerationAction:
     """Append one immutable audit row (call inside the mutation transaction)."""
 
@@ -529,6 +550,7 @@ def _audit(
         action_type=action_type,
         target_user_id=target_user_id,
         target_listing_id=target_listing_id,
+        target_review_id=target_review_id,
         reason=reason.strip(),
         action_metadata=metadata or {},
     )
@@ -544,6 +566,7 @@ def _audit_out(action: ModerationAction) -> ModerationActionOut:
         action_type=action.action_type.value,
         target_listing_id=action.target_listing_id,
         target_user_id=action.target_user_id,
+        target_review_id=action.target_review_id,
         reason=action.reason,
         action_metadata=action.action_metadata,
         created_at=action.created_at,
@@ -662,6 +685,23 @@ def _moderate_listing(
     )
     db.commit()
     db.refresh(action)
+
+    notification_types = {
+        ModerationActionType.LISTING_APPROVED: NotificationType.LISTING_APPROVED,
+        ModerationActionType.LISTING_REJECTED: NotificationType.LISTING_REJECTED,
+        ModerationActionType.LISTING_REMOVED: NotificationType.LISTING_REMOVED,
+        ModerationActionType.LISTING_RESTORED: NotificationType.LISTING_RESTORED,
+    }
+    if action_type in notification_types and listing.seller_id is not None:
+        notify(
+            db,
+            user_id=listing.seller_id,
+            actor_id=admin.id,
+            type=notification_types[action_type],
+            title=f"Listing {to_status.value.lower()}",
+            body=f"Your listing \"{listing.title}\" was {to_status.value.lower()}{(' — ' + reason) if reason else ''}.",
+            link=f"#/listing/{listing.id}",
+        )
     return _audit_out(action)
 
 
@@ -725,6 +765,95 @@ def restore_listing(
     )
 
 
+def _parse_review_status(value: str | None):
+    if value is None:
+        return None
+    try:
+        return ReviewStatus(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid review status. Use: {', '.join(s.value for s in ReviewStatus)}.",
+        ) from None
+
+
+@router.get("/reviews", response_model=PaginatedReviews)
+def list_reviews(
+    status_filter: str | None = Query(default=None, alias="status"),
+    reviewer_id: uuid.UUID | None = None,
+    reviewee_id: uuid.UUID | None = None,
+    order_id: uuid.UUID | None = None,
+    limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
+    offset: int = Query(default=0, ge=0),
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db_session),
+) -> PaginatedReviews:
+    """Admin review oversight: all rows incl. REMOVED, with filters."""
+
+    filters = []
+    status_enum = _parse_review_status(status_filter)
+    if status_enum is not None:
+        filters.append(Review.status == status_enum)
+    if reviewer_id is not None:
+        filters.append(Review.reviewer_id == reviewer_id)
+    if reviewee_id is not None:
+        filters.append(Review.reviewee_id == reviewee_id)
+    if order_id is not None:
+        filters.append(Review.order_id == order_id)
+    total = db.scalar(select(func.count()).select_from(Review).where(*filters)) or 0
+    rows = list(
+        db.scalars(
+            select(Review)
+            .where(*filters)
+            .order_by(Review.created_at.desc(), Review.id.desc())
+            .limit(limit)
+            .offset(offset)
+        ).all()
+    )
+    return PaginatedReviews(
+        items=[ReviewOut.model_validate(r) for r in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post("/reviews/{review_id}/remove", response_model=ModerationActionOut)
+def remove_review(
+    review_id: uuid.UUID,
+    payload: ModerationRequest,
+    admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db_session),
+) -> ModerationActionOut:
+    """Soft-remove a review: ACTIVE -> REMOVED, audit row appended.
+
+    The review row is never deleted; it is hidden from public/reviewee reads
+    while remaining in the author's history.
+    """
+
+    review = db.scalars(
+        select(Review).where(Review.id == review_id).with_for_update()
+    ).first()
+    if review is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Review not found."
+        )
+    if review.status == ReviewStatus.REMOVED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Review is already removed.",
+        )
+    review.status = ReviewStatus.REMOVED
+    review.removed_at = datetime.now(timezone.utc)
+    action = _audit(
+        db, admin, ModerationActionType.REVIEW_REMOVED, payload.reason,
+        payload.metadata, target_review_id=review.id,
+    )
+    db.commit()
+    db.refresh(action)
+    return _audit_out(action)
+
+
 def _parse_action_type(value: str | None):
     if value is None:
         return None
@@ -743,6 +872,7 @@ def list_moderation(
     admin_id: uuid.UUID | None = None,
     target_user_id: uuid.UUID | None = None,
     target_listing_id: uuid.UUID | None = None,
+    target_review_id: uuid.UUID | None = None,
     limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
     _admin: User = Depends(require_admin_user),
@@ -760,6 +890,8 @@ def list_moderation(
         filters.append(ModerationAction.target_user_id == target_user_id)
     if target_listing_id is not None:
         filters.append(ModerationAction.target_listing_id == target_listing_id)
+    if target_review_id is not None:
+        filters.append(ModerationAction.target_review_id == target_review_id)
     total = db.scalar(select(func.count()).select_from(ModerationAction).where(*filters)) or 0
     rows = list(
         db.scalars(
@@ -789,3 +921,282 @@ def moderation_detail(
             status_code=status.HTTP_404_NOT_FOUND, detail="Moderation action not found."
         )
     return _audit_out(action)
+
+
+def _parse_report_status(value: str | None):
+    if value is None:
+        return None
+    try:
+        return ReportStatus(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid report status. Use: {', '.join(s.value for s in ReportStatus)}.",
+        ) from None
+
+
+def _serialize_report(db: Session, report: Report) -> ReportOut:
+    return ReportOut.model_validate(report)
+
+
+@router.get("/reports", response_model=PaginatedReports)
+def list_reports(
+    status_filter: str | None = Query(default=None, alias="status"),
+    target_type: str | None = None,
+    reporter_id: uuid.UUID | None = None,
+    limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
+    offset: int = Query(default=0, ge=0),
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db_session),
+) -> PaginatedReports:
+    """Admin report oversight: all rows, with filters."""
+
+    filters = []
+    status_enum = _parse_report_status(status_filter)
+    if status_enum is not None:
+        filters.append(Report.status == status_enum)
+    if target_type is not None:
+        filters.append(Report.target_type == target_type)
+    if reporter_id is not None:
+        filters.append(Report.reporter_id == reporter_id)
+    total = db.scalar(select(func.count()).select_from(Report).where(*filters)) or 0
+    rows = list(
+        db.scalars(
+            select(Report)
+            .where(*filters)
+            .order_by(Report.created_at.desc(), Report.id.desc())
+            .limit(limit)
+            .offset(offset)
+        ).all()
+    )
+    return PaginatedReports(
+        items=[_serialize_report(db, row) for row in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/reports/{report_id}", response_model=ReportOut)
+def report_detail(
+    report_id: uuid.UUID,
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db_session),
+) -> ReportOut:
+    """Single report (ADMIN only)."""
+
+    report = db.get(Report, report_id)
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found."
+        )
+    return _serialize_report(db, report)
+
+
+@router.patch("/reports/{report_id}/status", response_model=ReportOut)
+def update_report_status(
+    report_id: uuid.UUID,
+    payload: ReportStatusUpdate,
+    admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db_session),
+) -> ReportOut:
+    """Admin transitions a report: OPEN -> UNDER_REVIEW -> RESOLVED | DISMISSED."""
+
+    report = db.get(Report, report_id)
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found."
+        )
+    try:
+        new_status = ReportStatus(payload.status)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid report status. Use: {', '.join(s.value for s in ReportStatus)}.",
+        ) from None
+    if report.status == new_status:
+        db.commit()
+    else:
+        report.status = new_status
+        db.commit()
+    db.refresh(report)
+    return _serialize_report(db, report)
+
+
+def _parse_ticket_status(value: str | None):
+    if value is None:
+        return None
+    try:
+        return SupportTicketStatus(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid ticket status. Use: {', '.join(s.value for s in SupportTicketStatus)}.",
+        ) from None
+
+
+def _parse_ticket_priority(value: str | None):
+    if value is None:
+        return None
+    try:
+        return SupportTicketPriority(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid priority. Use: {', '.join(p.value for p in SupportTicketPriority)}.",
+        ) from None
+
+
+@router.get("/support/tickets", response_model=PaginatedSupportTickets)
+def list_tickets(
+    status_filter: str | None = Query(default=None, alias="status"),
+    priority_filter: str | None = Query(default=None, alias="priority"),
+    user_id: uuid.UUID | None = None,
+    limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
+    offset: int = Query(default=0, ge=0),
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db_session),
+) -> PaginatedSupportTickets:
+    """Admin support-ticket listing with filters."""
+
+    filters = []
+    status_enum = _parse_ticket_status(status_filter)
+    if status_enum is not None:
+        filters.append(SupportTicket.status == status_enum)
+    priority_enum = _parse_ticket_priority(priority_filter)
+    if priority_enum is not None:
+        filters.append(SupportTicket.priority == priority_enum)
+    if user_id is not None:
+        filters.append(SupportTicket.user_id == user_id)
+    total = db.scalar(select(func.count()).select_from(SupportTicket).where(*filters)) or 0
+    rows = list(
+        db.scalars(
+            select(SupportTicket)
+            .where(*filters)
+            .order_by(SupportTicket.created_at.desc(), SupportTicket.id.desc())
+            .limit(limit)
+            .offset(offset)
+        ).all()
+    )
+    return PaginatedSupportTickets(
+        items=[SupportTicketOut.model_validate(row) for row in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/support/tickets/{ticket_id}", response_model=SupportTicketOut)
+def ticket_detail_admin(
+    ticket_id: uuid.UUID,
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db_session),
+) -> SupportTicketOut:
+    """Single support ticket (ADMIN only)."""
+
+    ticket = db.get(SupportTicket, ticket_id)
+    if ticket is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found."
+        )
+    return SupportTicketOut.model_validate(ticket)
+
+
+@router.get("/support/tickets/{ticket_id}/messages", response_model=list[SupportTicketMessageOut])
+def ticket_messages_admin(
+    ticket_id: uuid.UUID,
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db_session),
+) -> list[SupportTicketMessageOut]:
+    """Thread messages for a ticket (ADMIN only)."""
+
+    ticket = db.get(SupportTicket, ticket_id)
+    if ticket is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found."
+        )
+    rows = list(
+        db.scalars(
+            select(SupportTicketMessage)
+            .where(SupportTicketMessage.ticket_id == ticket.id)
+            .order_by(SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc())
+        ).all()
+    )
+    return [SupportTicketMessageOut.model_validate(row) for row in rows]
+
+
+@router.patch("/support/tickets/{ticket_id}", response_model=SupportTicketOut)
+def update_ticket_admin(
+    ticket_id: uuid.UUID,
+    payload: SupportTicketUpdate,
+    admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db_session),
+) -> SupportTicketOut:
+    """Admin updates a ticket's status and/or priority."""
+
+    ticket = db.get(SupportTicket, ticket_id)
+    if ticket is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found."
+        )
+    if payload.status is not None:
+        try:
+            status_enum = SupportTicketStatus(payload.status)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid ticket status. Use: {', '.join(s.value for s in SupportTicketStatus)}.",
+            ) from None
+        ticket.status = status_enum
+    if payload.priority is not None:
+        try:
+            priority_enum = SupportTicketPriority(payload.priority)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid priority. Use: {', '.join(p.value for p in SupportTicketPriority)}.",
+            ) from None
+        ticket.priority = priority_enum
+    db.commit()
+    db.refresh(ticket)
+    return SupportTicketOut.model_validate(ticket)
+
+
+@router.post(
+    "/support/tickets/{ticket_id}/messages",
+    response_model=SupportTicketMessageOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def reply_ticket_admin(
+    ticket_id: uuid.UUID,
+    payload: SupportMessageCreate,
+    admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db_session),
+) -> SupportTicketMessageOut:
+    """Support replies to a ticket; sets WAITING_FOR_CUSTOMER."""
+
+    ticket = db.get(SupportTicket, ticket_id)
+    if ticket is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found."
+        )
+    if not payload.body.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Message body cannot be empty.",
+        )
+    if ticket.status in ("RESOLVED", "CLOSED"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Terminal tickets cannot receive replies.",
+        )
+    message = SupportTicketMessage(
+        ticket_id=ticket.id,
+        author_id=admin.id,
+        body=payload.body.strip(),
+    )
+    ticket.status = SupportTicketStatus.WAITING_FOR_CUSTOMER
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    return SupportTicketMessageOut.model_validate(message)

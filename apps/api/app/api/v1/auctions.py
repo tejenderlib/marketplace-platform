@@ -29,9 +29,11 @@ from app.catalog.dependencies import is_admin
 from app.catalog.models import Listing, ListingSaleType
 from app.core.config import get_settings
 from app.db.session import get_db_session
-from app.identity.dependencies import require_authenticated_user
+from app.identity.dependencies import require_active_user, require_authenticated_user
 from app.identity.models import User, UserProfile
 from app.identity.security import decode_access_token
+from app.notifications.models import NotificationType
+from app.notifications.service import notify
 from app.trading.models import (
     Auction,
     AuctionResult,
@@ -192,7 +194,7 @@ def _serialize_bid(db: Session, bid: Bid, names: dict[uuid.UUID, str | None]) ->
 @router.post("", response_model=AuctionOut, status_code=status.HTTP_201_CREATED)
 def create_auction(
     payload: AuctionCreate,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> AuctionOut:
     """Seller creates a DRAFT auction for their own AUCTION listing."""
@@ -381,7 +383,7 @@ def list_bids(
 def place_bid(
     auction_id: uuid.UUID,
     payload: BidCreate,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> BidOut:
     """Authoritative bid placement: one locked transaction, idempotent by request_id."""
@@ -425,6 +427,18 @@ def place_bid(
             detail="The seller cannot bid on their own auction.",
         )
     now = _now()
+    # Anti-churn cap: a single bidder cannot flood one auction with
+    # unbounded bids (configurable, default 200 per user per auction).
+    my_bid_count = db.scalar(
+        select(func.count()).select_from(Bid).where(
+            Bid.auction_id == auction.id, Bid.bidder_id == user.id
+        )
+    )
+    if (my_bid_count or 0) >= get_settings().max_bids_per_user_per_auction:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Bid limit reached for this auction.",
+        )
     if auction.status != AuctionStatus.LIVE:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -457,6 +471,7 @@ def place_bid(
     db.add(bid)
     db.flush()
     # Exactly one WINNING bid may exist: demote any prior winner.
+    previous_winner_id = auction.current_winner_id
     db.execute(
         Bid.__table__.update()
         .where(Bid.auction_id == auction.id, Bid.id != bid.id, Bid.status == BidStatus.WINNING)
@@ -476,13 +491,23 @@ def place_bid(
             detail="Bid conflicts with an existing row; retry with a new request_id.",
         ) from error
     db.refresh(bid)
+    if previous_winner_id is not None and previous_winner_id != user.id:
+        notify(
+            db,
+            user_id=previous_winner_id,
+            actor_id=user.id,
+            type=NotificationType.OUTBID,
+            title="You have been outbid",
+            body=f"Someone bid ₹{payload.amount_minor:,} on an auction you were leading for \"{listing.title}\".",
+            link="/auctions",
+        )
     return _serialize_bid(db, bid, {user.id: None} | _bidder_names(db, {user.id}))
 
 
 @router.post("/{auction_id}/schedule", response_model=AuctionOut)
 def schedule_auction(
     auction_id: uuid.UUID,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> AuctionOut:
     """Seller/ADMIN moves DRAFT -> SCHEDULED."""
@@ -503,7 +528,7 @@ def schedule_auction(
 @router.post("/{auction_id}/start", response_model=AuctionOut)
 def start_auction(
     auction_id: uuid.UUID,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> AuctionOut:
     """Seller/ADMIN moves SCHEDULED -> LIVE once starts_at is reached."""
@@ -536,8 +561,11 @@ def close_auction(db: Session, auction_id: uuid.UUID) -> tuple[Auction, AuctionR
     """Authoritative close, safe for endpoints now and a scheduler later.
 
     Locks the auction row, requires LIVE + elapsed ends_at, writes exactly
-    one result row (NO_BIDS or AWAITING_CHECKOUT), marks the winner WON.
-    Returns (auction, result, created). Retries return the existing result.
+    one result row. The top bid wins only when it meets the reserve
+    (reserve_minor NULL means unrestricted; >= reserve wins, ties included):
+    a below-reserve top bid leaves no winner — the result is NO_BIDS, no
+    bid flips to WON, and no checkout state is created. Returns
+    (auction, result, created). Retries return the existing result.
     """
 
     auction = db.scalars(
@@ -570,7 +598,18 @@ def close_auction(db: Session, auction_id: uuid.UUID) -> tuple[Auction, AuctionR
         )
         .order_by(Bid.amount_minor.desc(), Bid.created_at.asc(), Bid.id.asc())
     ).first()
+    had_bids = top is not None
     now = _now()
+    # Reserve-price enforcement: a bid at or above the reserve wins; the
+    # highest bid alone is not enough when it is below the reserve.
+    meets_reserve = (
+        top is not None
+        and (auction.reserve_minor is None or top.amount_minor >= auction.reserve_minor)
+    )
+    if not meets_reserve:
+        # Same terminal path as no bids: canonical "no winner" result with
+        # no winning_bid_id/winner_id and no AWAITING_CHECKOUT/checkout flow.
+        top = None
     if top is None:
         result = AuctionResult(auction_id=auction.id, status=AuctionResultStatus.NO_BIDS)
     else:
@@ -604,13 +643,44 @@ def close_auction(db: Session, auction_id: uuid.UUID) -> tuple[Auction, AuctionR
         return auction, existing, False
     db.refresh(auction)
     db.refresh(result)
+
+    auction_listing = db.get(Listing, auction.listing_id)
+    listing_title = auction_listing.title if auction_listing else "This listing"
+    if top is not None:
+        notify(
+            db,
+            user_id=top.bidder_id,
+            actor_id=auction_listing.seller_id if auction_listing else None,
+            type=NotificationType.AUCTION_WON,
+            title="You won the auction",
+            body=f"Congratulations! You won the auction for \"{listing_title}\". Complete checkout to claim it.",
+            link="/auctions",
+        )
+    if auction_listing is not None and auction_listing.seller_id is not None:
+        notify(
+            db,
+            user_id=auction_listing.seller_id,
+            actor_id=top.bidder_id if top is not None else None,
+            type=NotificationType.AUCTION_ENDED,
+            title="Auction ended",
+            body=(
+                f"Your auction for \"{listing_title}\" ended with a winning bid of ₹{top.amount_minor:,}."
+                if top is not None
+                else (
+                    f"Your auction for \"{listing_title}\" ended with no bids."
+                    if not had_bids
+                    else f"Your auction for \"{listing_title}\" ended below your reserve price; there is no winner."
+                )
+            ),
+            link="/auctions",
+        )
     return auction, result, True
 
 
 @router.post("/{auction_id}/close", response_model=AuctionResultOut)
 def close_auction_endpoint(
     auction_id: uuid.UUID,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> AuctionResultOut:
     """Seller/ADMIN closes a LIVE auction whose end time has passed (idempotent)."""

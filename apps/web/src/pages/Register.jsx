@@ -1,6 +1,8 @@
 import { useState } from "react";
 
 import { describeAuthError, useAuth } from "../auth/AuthContext.jsx";
+import { apiFetch, ApiError } from "../api/client.js";
+import { login } from "../auth/auth.js";
 import { takePostLoginRedirect } from "../auth/auth.js";
 
 export default function RegisterPage() {
@@ -11,6 +13,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [pendingVerification, setPendingVerification] = useState(null);
 
   async function submit(e) {
     e.preventDefault();
@@ -22,13 +25,67 @@ export default function RegisterPage() {
     setBusy(true);
     setError(null);
     try {
-      await register(email.trim(), password);
-      window.location.hash = takePostLoginRedirect();
+      const reg = await register(email.trim(), password);
+      // Phase 8: accounts start PENDING_VERIFICATION. V1 has no email
+      // delivery, so the API returns the verification token directly —
+      // complete activation here before entering the marketplace.
+      if (reg && reg.verification_token) {
+        setPendingVerification(reg.verification_token);
+      } else {
+        window.location.hash = takePostLoginRedirect();
+      }
     } catch (err) {
       setError(describeAuthError(err));
     } finally {
       setBusy(false);
     }
+  }
+
+  async function verifyNow(e) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiFetch("/auth/verify-email", {
+        method: "POST",
+        body: { token: pendingVerification },
+      });
+      await login(email.trim(), password);
+      window.location.hash = takePostLoginRedirect();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail || "Verification failed." : "Verification failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (pendingVerification) {
+    return (
+      <div className="auth-wrap">
+        <form className="auth-card" onSubmit={verifyNow} noValidate>
+          <p className="eyebrow">One more step</p>
+          <h1>Verify your email</h1>
+          <p className="muted small">
+            Your account is created and pending verification. This deployment has
+            no mail service, so your verification token is shown here.
+          </p>
+          <p className="muted small mono">{pendingVerification}</p>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
+            {busy ? "Verifying…" : "Verify and continue"}
+          </button>
+          <p className="muted">
+            Already verified on another device?{" "}
+            <a href="#/login">Log in</a>
+          </p>
+        </form>
+      </div>
+    );
   }
 
   return (

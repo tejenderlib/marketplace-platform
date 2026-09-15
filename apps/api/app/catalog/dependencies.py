@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db_session
-from app.identity.dependencies import require_authenticated_user
+from app.identity.dependencies import require_active_user
 from app.identity.models import Role, RoleName, User, UserRole
 from app.catalog.models import Listing
 
@@ -40,10 +40,14 @@ def get_listing_or_404(listing_id: uuid.UUID, db: Session = Depends(get_db_sessi
 
 def require_listing_owner_or_admin(
     listing: Listing = Depends(get_listing_or_404),
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> Listing:
-    """Allow the listing owner; ADMIN is a separate privileged path."""
+    """Allow the listing owner; ADMIN is a separate privileged path.
+
+    Requires a fully ACTIVE account: an unverified seller cannot manage
+    listings even if it somehow owns rows.
+    """
 
     if listing.seller_id != user.id and not is_admin(db, user):
         raise HTTPException(

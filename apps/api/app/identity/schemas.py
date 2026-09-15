@@ -82,6 +82,21 @@ class LogoutRequest(BaseModel):
     refresh_token: str
 
 
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=16, max_length=512)
+
+
+class ResendVerificationRequest(BaseModel):
+    email: str
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        return _validate_email(value)
+
+
 class ProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -112,7 +127,13 @@ class PublicUserProfile(BaseModel):
 
 
 class UserResponse(BaseModel):
-    """Safe user representation. Never includes password_hash or token secrets."""
+    """Safe user representation. Never includes password_hash or token secrets.
+
+    ``verification_token`` is populated only by the register response in
+    V1 (no email infrastructure): local development and smoke suites use
+    it to activate the account. It is never included in /auth/me or any
+    other read path.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -123,3 +144,4 @@ class UserResponse(BaseModel):
     roles: list[str] = []
     profile: ProfileResponse | None = None
     created_at: datetime
+    verification_token: str | None = None

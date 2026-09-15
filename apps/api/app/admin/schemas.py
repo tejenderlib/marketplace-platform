@@ -98,6 +98,7 @@ class ModerationActionOut(BaseModel):
     action_type: str
     target_listing_id: uuid.UUID | None = None
     target_user_id: uuid.UUID | None = None
+    target_review_id: uuid.UUID | None = None
     reason: str
     metadata: dict = Field(default={}, alias="action_metadata")
     created_at: datetime

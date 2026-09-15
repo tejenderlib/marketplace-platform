@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -17,10 +18,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.catalog.models import Listing, ListingSaleType, ListingStatus
+from app.core.config import get_settings
 from app.db.session import get_db_session
-from app.identity.dependencies import require_authenticated_user
+from app.identity.dependencies import require_active_user, require_authenticated_user
 from app.identity.models import User
 from app.identity.security import normalize_email
+from app.notifications.models import NotificationType
+from app.notifications.service import notify
 from app.orders.models import (
     AddressStatus,
     Order,
@@ -36,7 +40,11 @@ from app.orders.schemas import (
     OfferCheckoutRequest,
     OrderOut,
 )
-from app.orders.views import record_history, serialize_order
+from app.orders.views import (
+    record_history,
+    release_expired_order,
+    serialize_order,
+)
 from app.trading.models import (
     Auction,
     AuctionResult,
@@ -52,6 +60,33 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 # Server-side shipping policy: free shipping for this phase.
 FLAT_SHIPPING_MINOR = 0
+
+
+def _checkout_deadline() -> datetime:
+    """Payment deadline for a new order (reuses the auction window)."""
+
+    return datetime.now(timezone.utc) + timedelta(
+        hours=get_settings().auction_checkout_window_hours
+    )
+
+
+def _release_abandoned_order(db: Session, listing_id: uuid.UUID) -> None:
+    """Lazily cancel a past-due PENDING_PAYMENT order on this listing.
+
+    Called with the listing row already locked, so the listing cannot be
+    released while another buyer is mid-checkout on it. If the abandoned
+    order exists and is expired, cancelling it releases the reservation
+    and this buyer proceeds; otherwise the RESERVED guard below rejects.
+    """
+
+    abandoned = db.scalars(
+        select(Order).where(
+            Order.listing_id == listing_id,
+            Order.status == OrderStatus.PENDING_PAYMENT,
+        )
+    ).first()
+    if abandoned is not None:
+        release_expired_order(db, abandoned)
 
 
 def _validate_contact_email(value: str) -> str:
@@ -120,7 +155,7 @@ def _resolve_snapshot(
 @router.post("/fixed-price", response_model=OrderOut, status_code=status.HTTP_201_CREATED)
 def fixed_price_checkout(
     payload: CheckoutRequest,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> OrderOut:
     """Buy Now: lock listing, price authoritatively, create order + snapshot."""
@@ -135,10 +170,15 @@ def fixed_price_checkout(
             status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found."
         )
     if listing.status != ListingStatus.ACTIVE:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Listing is {listing.status.value} and cannot be purchased.",
-        )
+        # A previous buyer may have abandoned an expired checkout; release
+        # it (and the reservation) before rejecting, then re-check.
+        _release_abandoned_order(db, listing.id)
+        db.refresh(listing)
+        if listing.status != ListingStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Listing is {listing.status.value} and cannot be purchased.",
+            )
     if listing.sale_type != ListingSaleType.FIXED_PRICE:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -185,6 +225,7 @@ def fixed_price_checkout(
         shipping_minor=shipping,
         total_minor=subtotal + shipping,
         status=OrderStatus.PENDING_PAYMENT,
+        checkout_expires_at=_checkout_deadline(),
     )
     db.add(order)
     db.flush()
@@ -204,13 +245,22 @@ def fixed_price_checkout(
             detail="Listing was just purchased by another buyer.",
         ) from error
     db.refresh(order)
+    notify(
+        db,
+        user_id=listing.seller_id,
+        actor_id=user.id,
+        type=NotificationType.ORDER_PLACED,
+        title="New order for your listing",
+        body=f"\"{listing.title}\" was just ordered for ₹{order.total_minor:,}.",
+        link="/orders",
+    )
     return serialize_order(db, order)
 
 
 @router.post("/offer", response_model=OrderOut, status_code=status.HTTP_201_CREATED)
 def accepted_offer_checkout(
     payload: OfferCheckoutRequest,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> OrderOut:
     """Accepted-offer checkout: lock offer + listing, create exactly one ACCEPTED_OFFER order."""
@@ -260,10 +310,13 @@ def accepted_offer_checkout(
             status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found."
         )
     if listing.status != ListingStatus.ACTIVE:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Listing is {listing.status.value} and cannot be purchased.",
-        )
+        _release_abandoned_order(db, listing.id)
+        db.refresh(listing)
+        if listing.status != ListingStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Listing is {listing.status.value} and cannot be purchased.",
+            )
     if listing.sale_type != ListingSaleType.FIXED_PRICE:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -299,6 +352,7 @@ def accepted_offer_checkout(
         shipping_minor=shipping,
         total_minor=subtotal + shipping,
         status=OrderStatus.PENDING_PAYMENT,
+        checkout_expires_at=_checkout_deadline(),
     )
     db.add(order)
     db.flush()
@@ -337,7 +391,7 @@ def accepted_offer_checkout(
 @router.post("/auction", response_model=OrderOut, status_code=status.HTTP_201_CREATED)
 def auction_winner_checkout(
     payload: AuctionCheckoutRequest,
-    user: User = Depends(require_authenticated_user),
+    user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> OrderOut:
     """Winner claims an AWAITING_CHECKOUT result: exactly one AUCTION_WIN order."""
@@ -438,6 +492,9 @@ def auction_winner_checkout(
         shipping_minor=shipping,
         total_minor=subtotal + shipping,
         status=OrderStatus.PENDING_PAYMENT,
+        # Same payment deadline policy as the other checkout sources: the
+        # winner must pay within the checkout window of claiming the item.
+        checkout_expires_at=_checkout_deadline(),
     )
     db.add(order)
     db.flush()

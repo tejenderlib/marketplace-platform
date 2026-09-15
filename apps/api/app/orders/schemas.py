@@ -129,6 +129,7 @@ class OrderOut(BaseModel):
     shipping_minor: int
     total_minor: int
     status: str
+    checkout_expires_at: datetime | None = None
     paid_at: datetime | None = None
     cancelled_at: datetime | None = None
     created_at: datetime

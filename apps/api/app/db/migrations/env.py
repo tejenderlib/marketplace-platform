@@ -10,7 +10,12 @@ from app.db.base import Base
 import app.admin.models  # noqa: F401
 import app.catalog.models  # noqa: F401
 import app.identity.models  # noqa: F401
+import app.messaging.models  # noqa: F401
+import app.notifications.models  # noqa: F401
 import app.orders.models  # noqa: F401
+import app.reports.models  # noqa: F401
+import app.reviews.models  # noqa: F401
+import app.support.models  # noqa: F401
 import app.trading.models  # noqa: F401
 
 

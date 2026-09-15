@@ -239,7 +239,13 @@ class UserProfile(Base):
 
 
 class AuthRefreshToken(Base):
-    """Hashed refresh-token record; raw token never persisted."""
+    """Hashed refresh-token record; raw token never persisted.
+
+    Tokens issued at login start a family (``family_id``); every rotation
+    inherits it. Presenting an already-rotated token (``rotated_at`` set)
+    signals theft, so the whole family is revoked. ``rotated_at`` is only
+    set by rotation; logout/suspension revoke without it.
+    """
 
     __tablename__ = "auth_refresh_tokens"
     __table_args__ = (
@@ -251,6 +257,7 @@ class AuthRefreshToken(Base):
         Index("ix_auth_refresh_tokens_user_id", "user_id"),
         Index("ix_auth_refresh_tokens_status", "status"),
         Index("ix_auth_refresh_tokens_expires_at", "expires_at"),
+        Index("ix_auth_refresh_tokens_family_id", "family_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -264,6 +271,9 @@ class AuthRefreshToken(Base):
         nullable=False,
     )
     token_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    family_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, default=uuid.uuid4
+    )
     status: Mapped[RefreshTokenStatus] = mapped_column(
         refresh_token_status_enum,
         nullable=False,
@@ -272,6 +282,9 @@ class AuthRefreshToken(Base):
     )
     expires_at: Mapped[datetime] = mapped_column(Timestamptz, nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(
+        Timestamptz, nullable=True
+    )
+    rotated_at: Mapped[datetime | None] = mapped_column(
         Timestamptz, nullable=True
     )
     revoked_at: Mapped[datetime | None] = mapped_column(
