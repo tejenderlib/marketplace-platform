@@ -14,6 +14,7 @@ import {
   Pagination,
   describeActionError,
   formatDateTime,
+  StatusPill,
   useAdminData,
 } from "../components/ui.jsx";
 import ModerationDialog from "../components/ModerationDialog.jsx";
@@ -23,10 +24,6 @@ const SALE_TYPES = ["FIXED_PRICE", "AUCTION"];
 const LIMIT = 20;
 
 const ACTIONS_FOR_STATUS = {
-  PENDING_REVIEW: [
-    ["approve", "Approve", "Approve this listing? It will become ACTIVE and visible to buyers."],
-    ["reject", "Reject", "Reject this listing? It will be marked REJECTED with your reason."],
-  ],
   ACTIVE: [
     ["remove", "Remove", "Remove this listing? Buyers will no longer see it. History is preserved."],
   ],
@@ -167,7 +164,7 @@ export function ListingDetailPage({ id }) {
             <dt>Price</dt>
             <dd>{data.fixed_price_minor != null ? formatPrice(data.fixed_price_minor) : "Auction — see bids"}</dd>
             <dt>Sale type</dt><dd><span className="pill">{data.sale_type}</span></dd>
-            <dt>Status</dt><dd><span className="pill">{data.status}</span></dd>
+            <dt>Status</dt><dd><StatusPill value={data.status} /></dd>
             <dt>Condition</dt><dd>{data.condition}</dd>
             <dt>Category</dt><dd>{data.category?.name} ({data.category?.slug})</dd>
             <dt>Location</dt><dd>{[data.city, data.region, data.country_code].filter(Boolean).join(", ")}</dd>
@@ -253,7 +250,7 @@ function ListingRow({ item, onChanged }) {
       </td>
       <td>{item.fixed_price_minor != null ? formatPrice(item.fixed_price_minor) : "—"}</td>
       <td><span className="pill">{item.sale_type}</span></td>
-      <td><span className="pill">{item.status}</span></td>
+      <td><StatusPill value={item.status} /></td>
       <td>{item.city}</td>
       <td>
         {actions.length === 0 && <span className="muted">—</span>}

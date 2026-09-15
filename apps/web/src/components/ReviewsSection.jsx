@@ -4,11 +4,7 @@ import { ApiError } from "../api/client.js";
 import { fetchPublicProfile } from "../api/catalog.js";
 import { revieweeReviews } from "../api/reviews.js";
 import RatingStars from "./RatingStars.jsx";
-
-function formatDate(value) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-}
+import ReviewCard from "./ReviewCard.jsx";
 
 /** Received reviews + aggregate for a reviewee (auth-gated read). */
 export default function ReviewsSection({ authFetch, isAuthenticated, userId, limit = 20 }) {
@@ -85,14 +81,11 @@ export default function ReviewsSection({ authFetch, isAuthenticated, userId, lim
       </div>
       <ul className="review-list">
         {summary.items.map((review) => (
-          <li className="review-item" key={review.id}>
-            <div className="review-item-head">
-              <strong>{reviewerNames[review.reviewer_id] ?? "Former member"}</strong>
-              <span className="muted small">{formatDate(review.created_at)}</span>
-            </div>
-            <RatingStars value={review.rating} size="sm" />
-            {review.comment && <p className="review-comment">{review.comment}</p>}
-          </li>
+          <ReviewCard
+            key={review.id}
+            review={review}
+            reviewerName={reviewerNames[review.reviewer_id]}
+          />
         ))}
       </ul>
     </>

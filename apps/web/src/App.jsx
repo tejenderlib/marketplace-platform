@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 
-import CategoryGrid from "./components/CategoryGrid.jsx";
 import Footer from "./components/Footer.jsx";
 import Header from "./components/Header.jsx";
 import Hero from "./components/Hero.jsx";
@@ -14,18 +13,13 @@ import { useCategories, useListingDetail, useListings } from "./hooks/useCatalog
 import { useFavorites } from "./hooks/useFavorites.js";
 import LoginPage from "./pages/Login.jsx";
 import RegisterPage from "./pages/Register.jsx";
-import FavoritesPage from "./pages/Favorites.jsx";
-import BuyerOffersPage from "./pages/BuyerOffers.jsx";
-import SellerOffersPage from "./pages/SellerOffers.jsx";
-import ProfilePage from "./pages/Profile.jsx";
+import SellPage from "./pages/Sell.jsx";
+import AccountWorkspace from "./components/account/AccountWorkspace.jsx";
 import SellerProfilePage from "./pages/SellerProfile.jsx";
 import CheckoutPage from "./pages/Checkout.jsx";
 import PaymentPage from "./pages/Payment.jsx";
 import AuctionCheckoutPage from "./pages/AuctionCheckout.jsx";
 import OfferCheckoutPage from "./pages/OfferCheckout.jsx";
-import { OrdersPage, OrderDetailPage } from "./pages/Orders.jsx";
-import NotificationsPage from "./pages/NotificationsPage.jsx";
-import MessagesPage from "./pages/Messages.jsx";
 import SupportPage from "./pages/Support.jsx";
 import SupportDetailPage from "./pages/SupportDetail.jsx";
 import ReportsPage from "./pages/Reports.jsx";
@@ -43,18 +37,39 @@ function parseRoute() {
   }
   if (window.location.hash.startsWith("#/login")) return { page: "login" };
   if (window.location.hash.startsWith("#/register")) return { page: "register" };
-  if (window.location.hash.startsWith("#/favorites")) return { page: "favorites" };
-  if (window.location.hash.startsWith("#/profile")) return { page: "profile" };
-  if (window.location.hash.startsWith("#/notifications")) return { page: "notifications" };
-  if (window.location.hash.startsWith("#/messages")) return { page: "messages" };
+  if (window.location.hash.startsWith("#/favorites")) {
+    return { page: "profile", section: "favorites" };
+  }
+  const profileSupportMatch = window.location.hash.match(/^#\/profile\/support\/([\w-]+)/);
+  if (profileSupportMatch) {
+    return { page: "profile", section: "support", ticketId: profileSupportMatch[1] };
+  }
+  const profileMatch = window.location.hash.match(/^#\/profile(?:\/(\w+))?/);
+  if (profileMatch) {
+    const valid = ["overview", "listings", "offers", "orders", "favorites", "messages", "notifications", "reviews", "support", "settings"];
+    return { page: "profile", section: valid.includes(profileMatch[1]) ? profileMatch[1] : "overview" };
+  }
+  if (window.location.hash.startsWith("#/notifications")) {
+    return { page: "profile", section: "notifications" };
+  }
+  if (window.location.hash.startsWith("#/messages")) {
+    return { page: "profile", section: "messages" };
+  }
   if (window.location.hash.startsWith("#/reports")) return { page: "reports" };
   const supportMatch = window.location.hash.match(/^#\/support\/([\w-]+)/);
   if (supportMatch) return { page: "support-detail", id: supportMatch[1] };
   if (window.location.hash.startsWith("#/support")) return { page: "support" };
-  if (window.location.hash.startsWith("#/seller/offers")) return { page: "seller-offers" };
+  if (window.location.hash.startsWith("#/seller/offers")) {
+    return { page: "profile", section: "offers", offersTab: "received" };
+  }
+  if (window.location.hash === "#/sell" || window.location.hash.startsWith("#/sell?")) {
+    return { page: "sell" };
+  }
   const sellerProfile = window.location.hash.match(/^#\/seller\/([\w-]+)/);
   if (sellerProfile) return { page: "seller", id: sellerProfile[1] };
-  if (window.location.hash.startsWith("#/offers")) return { page: "offers" };
+  if (window.location.hash.startsWith("#/offers")) {
+    return { page: "profile", section: "offers", offersTab: "sent" };
+  }
   const checkoutFixed = window.location.hash.match(/^#\/checkout\/fixed\/([\w-]+)/);
   if (checkoutFixed) return { page: "checkout", id: checkoutFixed[1] };
   const checkoutAuction = window.location.hash.match(/^#\/checkout\/auction\/([\w-]+)/);
@@ -64,8 +79,10 @@ function parseRoute() {
   const checkoutPay = window.location.hash.match(/^#\/checkout\/payment\/([\w-]+)/);
   if (checkoutPay) return { page: "payment", id: checkoutPay[1] };
   const orderMatch = window.location.hash.match(/^#\/orders\/([\w-]+)/);
-  if (orderMatch) return { page: "order-detail", id: orderMatch[1] };
-  if (window.location.hash.startsWith("#/orders")) return { page: "orders" };
+  if (orderMatch) return { page: "profile", section: "orders", orderId: orderMatch[1] };
+  if (window.location.hash.startsWith("#/orders")) {
+    return { page: "profile", section: "orders" };
+  }
   const match = window.location.hash.match(/^#\/listing\/([\w-]+)/);
   if (match) return { page: "detail", id: match[1] };
   return { page: "home" };
@@ -150,16 +167,35 @@ export default function App() {
     setOffset(0);
   }
 
+  function clearSearch() {
+    setQuery("");
+    setDebouncedQuery("");
+    setOffset(0);
+  }
+
   function selectSaleType(value) {
     setSaleType(value);
     setOffset(0);
   }
 
-  function handleQueryChange(value) {
-    setQuery(value);
-    if (route.page !== "home" && window.location.hash !== "#/") {
+  function goHome() {
+    if (window.location.hash !== "#/") {
       window.location.hash = "#/";
     }
+    setOffset(0);
+    window.scrollTo(0, 0);
+  }
+
+  function showAuctions() {
+    setActiveCategory("All");
+    setSaleType("AUCTION");
+    goHome();
+  }
+
+  function buyEquipment() {
+    setActiveCategory("All");
+    setSaleType("FIXED_PRICE");
+    goHome();
   }
 
   // NOTE: every hook must run on every render, before any early return
@@ -204,18 +240,18 @@ export default function App() {
     );
   }
 
-  if (route.page === "favorites") {
-    return (
-      <div className="app">
-        <FavoritesPage favorites={favorites} onToggleFavorite={toggleFavorite} />
-      </div>
-    );
-  }
-
   if (route.page === "profile") {
     return (
       <div className="app">
-        <ProfilePage />
+        <AccountWorkspace
+          section={route.section ?? "overview"}
+          offersTab={route.offersTab ?? "sent"}
+          orderId={route.orderId ?? null}
+          ticketId={route.ticketId ?? null}
+          favorites={favorites}
+          onToggleFavorite={toggleFavorite}
+          favoriteCount={favorites.size}
+        />
       </div>
     );
   }
@@ -228,18 +264,15 @@ export default function App() {
     );
   }
 
-  if (route.page === "offers") {
+  if (route.page === "sell") {
     return (
       <div className="app">
-        <BuyerOffersPage />
-      </div>
-    );
-  }
-
-  if (route.page === "seller-offers") {
-    return (
-      <div className="app">
-        <SellerOffersPage />
+        <SellPage
+          authFetch={authFetch}
+          categories={categoriesState.data}
+          isAuthenticated={isAuthenticated}
+          onRequireLogin={redirectToLogin}
+        />
       </div>
     );
   }
@@ -276,38 +309,6 @@ export default function App() {
     );
   }
 
-  if (route.page === "orders") {
-    return (
-      <div className="app">
-        <OrdersPage />
-      </div>
-    );
-  }
-
-  if (route.page === "order-detail") {
-    return (
-      <div className="app">
-        <OrderDetailPage id={route.id} />
-      </div>
-    );
-  }
-
-  if (route.page === "notifications") {
-    return (
-      <div className="app">
-        <NotificationsPage />
-      </div>
-    );
-  }
-
-  if (route.page === "messages") {
-    return (
-      <div className="app">
-        <MessagesPage />
-      </div>
-    );
-  }
-
   if (route.page === "reports") {
     return (
       <div className="app">
@@ -335,8 +336,6 @@ export default function App() {
   return (
     <div className="app">
       <Header
-        query={query}
-        onQueryChange={handleQueryChange}
         user={user}
         onLogin={() => {
           window.location.hash = "#/login";
@@ -346,16 +345,27 @@ export default function App() {
         }}
         onSell={() => {
           if (isAuthenticated) {
-            placeholderAction("Selling");
+            window.location.hash = "#/sell";
           } else {
             redirectToLogin();
           }
         }}
+        onAuctions={showAuctions}
+        onBuy={buyEquipment}
         onLogout={async () => {
           await logout();
           setNotice("Signed out.");
         }}
         favoriteCount={favorites.size}
+        categories={categoriesState.data}
+        activeCategory={activeCategory}
+        onSelectCategory={selectCategory}
+        categoriesLoading={categoriesState.loading}
+        categoriesError={categoriesState.error}
+        onCategoriesRetry={categoriesState.reload}
+        onViewAllAuctions={showAuctions}
+        query={query}
+        onQueryChange={setQuery}
       />
 
       {notice && (
@@ -412,38 +422,6 @@ export default function App() {
           <>
             <Hero query={query} onQueryChange={setQuery} />
             <div className="content">
-              {categoriesState.error ? (
-                <div className="empty-state" role="alert">
-                  <p>Could not load categories. {categoriesState.error.message ?? ""}</p>
-                  <button type="button" className="btn btn-primary" onClick={categoriesState.reload}>
-                    Retry
-                  </button>
-                </div>
-              ) : (
-                <CategoryGrid
-                  categories={categoriesState.data}
-                  active={activeCategory}
-                  onSelect={selectCategory}
-                  loading={categoriesState.loading}
-                />
-              )}
-              <div className="sale-filter" role="group" aria-label="Sale type filter">
-                {[
-                  ["", "All types"],
-                  ["FIXED_PRICE", "Fixed price"],
-                  ["AUCTION", "Auction"],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={saleType === value ? "chip is-active" : "chip"}
-                    aria-pressed={saleType === value}
-                    onClick={() => selectSaleType(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
               <ListingGrid
                 items={items}
                 total={listingsState.total}
@@ -453,8 +431,12 @@ export default function App() {
                 favorites={favorites}
                 onToggleFavorite={toggleFavorite}
                 onClearFilters={clearFilters}
+                onClearCategory={() => selectCategory("All")}
+                onClearSearch={clearSearch}
                 query={debouncedQuery}
                 activeCategoryName={activeCategoryName}
+                saleType={saleType}
+                onSelectSaleType={selectSaleType}
                 page={page}
                 pages={pages}
                 onPage={(next) => {

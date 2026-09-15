@@ -13,6 +13,7 @@ import {
   Pagination,
   describeActionError,
   formatDateTime,
+  StatusPill,
   useAdminData,
 } from "../components/ui.jsx";
 
@@ -78,7 +79,7 @@ export function ReportsPage() {
                     </td>
                     <td><span className="pill">{report.reason}</span></td>
                     <td className="mono small">{report.reporter_id.slice(0, 8)}…</td>
-                    <td><span className="pill">{report.status}</span></td>
+                    <td><StatusPill value={report.status} /></td>
                     <td>{formatDateTime(report.created_at)}</td>
                   </tr>
                 ))}
@@ -131,7 +132,7 @@ export function ReportDetailPage({ id }) {
             <dt>Reporter</dt><dd className="mono small">{data.reporter_id}</dd>
             <dt>Target</dt><dd>{data.target_type} <span className="mono small">{(data.target_listing_id ?? data.target_user_id) ?? "—"}</span></dd>
             <dt>Reason</dt><dd><span className="pill">{data.reason}</span></dd>
-            <dt>Status</dt><dd><span className="pill">{data.status}</span></dd>
+            <dt>Status</dt><dd><StatusPill value={data.status} /></dd>
             <dt>Submitted</dt><dd>{formatDateTime(data.created_at)}</dd>
           </dl>
         </div>

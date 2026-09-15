@@ -1,7 +1,7 @@
 """Shared setup helpers for backend smoke suites (stdlib only).
 
-Sellers can no longer PATCH listings straight to ACTIVE; activation goes
-through the canonical submit (seller) + approve (admin) workflow.
+Post-publication moderation: sellers publish DRAFT -> ACTIVE directly via
+POST /catalog/listings/{id}/submit; no admin approval step exists.
 """
 
 from __future__ import annotations
@@ -79,13 +79,9 @@ def ensure_admin(tag, prefix="adm"):
 
 
 def activate_listing(seller_tok, admin_tok, listing_id):
-    """Canonical publish: seller submits DRAFT, admin approves to ACTIVE."""
+    """Canonical publish: seller publishes DRAFT -> ACTIVE directly."""
 
-    status, _ = call("POST", f"/catalog/listings/{listing_id}/submit", token=seller_tok)
+    status, body = call("POST", f"/catalog/listings/{listing_id}/submit", token=seller_tok)
     assert status == 200, ("submit", status, listing_id)
-    status, body = call(
-        "POST", f"/admin/listings/{listing_id}/approve",
-        {"reason": "smoke test approval"}, token=admin_tok,
-    )
-    assert status == 200, ("approve", status, listing_id)
+    assert body["status"] == "ACTIVE", ("publish", body)
     return body

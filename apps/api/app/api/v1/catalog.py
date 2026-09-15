@@ -177,10 +177,16 @@ def _serialize_many(
     ]
 
 
-# Seller-safe status transitions. Everything else is system (RESERVED/SOLD/
-# EXPIRED), moderation (PENDING_REVIEW/REMOVED), or ADMIN-controlled.
+# Seller-safe PATCH transitions. Post-publication moderation model: sellers
+# publish DRAFT -> ACTIVE only via POST /submit (validated); ACTIVE ->
+# ARCHIVED only. PENDING_REVIEW / REJECTED are legacy pre-approval states
+# retained only for historical records. Legacy REJECTED -> DRAFT is kept so
+# old rows can recover; the normal V1 seller flow never creates them.
 _SELLER_TRANSITIONS: dict[ListingStatus, set[ListingStatus]] = {
-    ListingStatus.DRAFT: {ListingStatus.PENDING_REVIEW, ListingStatus.ARCHIVED},
+    # DRAFT activation goes only through POST /submit (validated publish);
+    # direct PATCH DRAFT -> ACTIVE stays forbidden so validation cannot be
+    # bypassed.
+    ListingStatus.DRAFT: {ListingStatus.ARCHIVED},
     ListingStatus.REJECTED: {ListingStatus.DRAFT},
     ListingStatus.ACTIVE: {ListingStatus.ARCHIVED},
 }
@@ -485,12 +491,17 @@ def submit_listing(
     user: User = Depends(require_active_user),
     db: Session = Depends(get_db_session),
 ) -> ListingOut:
-    """Owner submits a DRAFT for review.
+    """Owner publishes a DRAFT listing immediately (post-publication moderation).
 
-    Two-step auction workflow: an AUCTION listing must already have its
-    auction row (created via POST /auctions) before it is publishable.
-    Approval itself stays an admin action.
+    DRAFT -> ACTIVE. Validation is identical to the former review gate:
+    title/category/currency/location, the FIXED_PRICE/AUCTION/offers matrix,
+    and the two-step auction workflow (an AUCTION listing must already have
+    its auction row via POST /auctions). No admin approval is involved;
+    moderation happens post-publication via ADMIN remove/restore.
+    Duplicate publishes are safe: non-DRAFT rows yield 409.
     """
+
+    from datetime import datetime, timezone
 
     listing = db.scalars(
         select(Listing).where(Listing.id == listing_id).with_for_update()
@@ -502,22 +513,22 @@ def submit_listing(
     if listing.seller_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the listing owner may submit it for review.",
+            detail="Only the listing owner may publish it.",
         )
     if listing.status != ListingStatus.DRAFT:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Listing is {listing.status.value}; only DRAFT listings can be submitted.",
+            detail=f"Listing is {listing.status.value}; only DRAFT listings can be published.",
         )
     if not listing.title or len(listing.title.strip()) < 3:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="A title of at least 3 characters is required to submit.",
+            detail="A title of at least 3 characters is required to publish.",
         )
     if db.get(Category, listing.category_id) is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="A valid category is required to submit.",
+            detail="A valid category is required to publish.",
         )
     if listing.currency != "INR":
         raise HTTPException(
@@ -527,7 +538,7 @@ def submit_listing(
     if not listing.city or not listing.country_code:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="City and country are required to submit.",
+            detail="City and country are required to publish.",
         )
     _check_price_rules(listing.sale_type, listing.fixed_price_minor, listing.offers_enabled)
     if listing.sale_type == ListingSaleType.AUCTION:
@@ -537,9 +548,11 @@ def submit_listing(
         if auction_exists is None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="AUCTION listings require auction configuration (POST /auctions) before review.",
+                detail="AUCTION listings require auction configuration (POST /auctions) before publishing.",
             )
-    listing.status = ListingStatus.PENDING_REVIEW
+    listing.status = ListingStatus.ACTIVE
+    if listing.published_at is None:
+        listing.published_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(listing)
     return _serialize_many(db, [listing])[0]

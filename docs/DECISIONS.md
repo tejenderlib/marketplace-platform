@@ -474,3 +474,24 @@ after a Phase 9 documentation snapshot.
 - Real email delivery, real PSP, byte-level image validation,
   Redis-backed shared limiting/scheduling, collusion detection:
   post-V1 backlog (see PROJECT_STATUS.md).
+
+## Post-publication listing moderation (product lifecycle change)
+
+- **Decision.** Seller listings publish DRAFT -> ACTIVE immediately via
+  POST /catalog/listings/{id}/submit (validated: title, category, INR,
+  location, FIXED_PRICE/AUCTION/offers matrix, auction-row presence).
+  No approval queue, no seller-facing review wait. Moderation is
+  post-publication: ADMIN ACTIVE -> REMOVED -> ACTIVE (remove/restore
+  with reason + audit row + LISTING_REMOVED/LISTING_RESTORED seller
+  notification). The approve/reject admin endpoints were removed.
+- **Compatibility.** `listing_status` enum values PENDING_REVIEW /
+  REJECTED and `moderation_action_type` / notification values
+  LISTING_APPROVED / LISTING_REJECTED stay in the schema for historical
+  rows and audit history; the normal V1 seller flow never creates them.
+  Legacy REJECTED -> DRAFT PATCH is kept so old rows can recover.
+  No migration was required (no DB-level transition constraints).
+- **Rationale.** Pre-approval blocked every legitimate listing on manual
+  review; post-publication keeps buyers supplied while reports, support
+  tickets, and admin listing review catch policy violations after the
+  fact. Publish validation is unchanged, so invalid listings still
+  cannot go live.

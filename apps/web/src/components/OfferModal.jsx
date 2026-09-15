@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { formatPrice } from "../data/listings.js";
 
@@ -9,6 +9,14 @@ export default function OfferModal({ listing, onClose, onSubmit }) {
   const [expiryDays, setExpiryDays] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    function onKey(event) {
+      if (event.key === "Escape" && !busy) onClose?.();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [busy, onClose]);
 
   async function submit(e) {
     e.preventDefault();

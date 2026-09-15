@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { createReport } from "../api/reports.js";
 import { useAuth } from "../auth/AuthContext.jsx";
@@ -29,6 +29,14 @@ export default function ReportModal({ targetType, targetId, onClose, onReported 
   const [error, setError] = useState(null);
 
   const label = TARGET_LABELS[targetType] ?? "item";
+
+  useEffect(() => {
+    function onKey(event) {
+      if (event.key === "Escape" && !busy) onClose?.();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [busy, onClose]);
 
   async function submit(e) {
     e.preventDefault();
@@ -82,7 +90,11 @@ export default function ReportModal({ targetType, targetId, onClose, onReported 
             maxLength={2000}
             disabled={busy}
             placeholder="Anything that helps moderation understand the issue."
+            aria-describedby="report-details-count"
           />
+          <span id="report-details-count" className="muted small">
+            {details.length}/2000
+          </span>
         </label>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>

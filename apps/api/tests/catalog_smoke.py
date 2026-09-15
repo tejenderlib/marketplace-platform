@@ -139,7 +139,7 @@ def main():
         else:
             check(label, status == 422, (status, body))
 
-    # activate both for browsing tests (canonical publish: admin approves DRAFT)
+    # publish both for browsing tests (canonical publish: seller DRAFT -> ACTIVE)
     for listing_id in (lid, aid):
         status, _ = call("PATCH", f"/catalog/listings/{listing_id}", {"status": "ACTIVE"}, token=admin_tok)
         assert status == 200, (status, listing_id)

@@ -3,7 +3,7 @@
     docker compose exec -T -e PYTHONPATH=/app:/app/tests -w /app/tests api python tests/phase7_remaining_smoke.py
 
 Covers:
-- 7.3d: OUTBID, AUCTION_WON/AUCTION_ENDED, LISTING_APPROVED/REJECTED/REMOVED/RESTORED, ORDER_SHIPPED/DELIVERED events.
+- 7.3d: OUTBID, AUCTION_WON/AUCTION_ENDED, LISTING_REMOVED/RESTORED (post-publication moderation), ORDER_SHIPPED/DELIVERED events.
 - 7.4: messaging — start conversation, reply, participant-only access.
 - 7.5: reports — create on listing/user, duplicate rejected, invalid reason rejected, admin status transitions.
 - 7.6: support — create ticket, reply, admin reply + status transitions.
@@ -178,25 +178,15 @@ def main():
     check("non-admin cannot list reports 403", status == 403, status)
 
     # -------------------------------------------------------------------
-    # LISTING_REJECTED / LISTING_APPROVED notifications
+    # Post-publication moderation notifications: publish -> ACTIVE (no
+    # approval notification), then admin remove / restore notifications.
     # -------------------------------------------------------------------
-    listing2 = create_listing(seller_tok, admin_tok, cat, "Ph7 Reject Me")
-    status, _ = call("POST", f"/catalog/listings/{listing2['id']}/submit", token=seller_tok)
-    check("submit listing2", status == 200, status)
-    status, _ = call(
-        "POST", f"/admin/listings/{listing2['id']}/reject",
-        {"reason": "test rejection"}, token=admin_tok,
-    )
-    check("admin reject listing", status == 200, status)
-    status, notifs = call("GET", "/notifications", token=seller_tok)
-    types = [n["type"] for n in notifs["items"]]
-    check("seller got LISTING_REJECTED", "LISTING_REJECTED" in types, types)
+    listing2 = create_listing(seller_tok, admin_tok, cat, "Ph7 Publish Me")
+    status, pub2 = call("POST", f"/catalog/listings/{listing2['id']}/submit", token=seller_tok)
+    check("publish listing2 ACTIVE", status == 200 and pub2["status"] == "ACTIVE", (status, pub2))
 
-    listing3 = create_listing(seller_tok, admin_tok, cat, "Ph7 Approve Me")
+    listing3 = create_listing(seller_tok, admin_tok, cat, "Ph7 Moderate Me")
     activate_listing(seller_tok, admin_tok, listing3["id"])
-    status, notifs3 = call("GET", "/notifications", token=seller_tok)
-    types3 = [n["type"] for n in notifs3["items"]]
-    check("seller got LISTING_APPROVED", "LISTING_APPROVED" in types3, types3)
 
     status, _ = call(
         "POST", f"/admin/listings/{listing3['id']}/remove",

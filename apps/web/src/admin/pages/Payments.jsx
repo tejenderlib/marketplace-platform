@@ -10,6 +10,7 @@ import {
   Loading,
   Pagination,
   formatDateTime,
+  StatusPill,
   useAdminData,
 } from "../components/ui.jsx";
 
@@ -67,7 +68,7 @@ export default function PaymentsPage() {
                 {data.map((pay) => (
                   <tr key={pay.id}>
                     <td>{formatPrice(pay.amount_minor)}</td>
-                    <td><span className="pill">{pay.status}</span></td>
+                    <td><StatusPill value={pay.status} /></td>
                     <td>{pay.provider}</td>
                     <td className="mono small">{pay.order_id.slice(0, 8)}…</td>
                     <td>{formatDateTime(pay.initiated_at)}</td>

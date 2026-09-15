@@ -12,6 +12,32 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function statusPillClass(status) {
+  switch (status) {
+    case "ACTIVE":
+      return "pill pill-active";
+    case "SOLD":
+      return "pill pill-sold";
+    case "LIVE":
+      return "pill pill-live";
+    case "CANCELLED":
+      return "pill pill-cancelled";
+    case "PENDING":
+      return "pill pill-pending";
+    default:
+      return "pill";
+  }
+}
+
+function scrollToBids() {
+  const reduced =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document
+    .getElementById("bid-panel")
+    ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+}
+
 export default function ListingDetail({
   listing,
   isFavorite,
@@ -28,9 +54,25 @@ export default function ListingDetail({
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerDone, setOfferDone] = useState(null);
   const [reportOpen, setReportOpen] = useState(false);
-  const galleryCount = Math.max(1, listing.imageCount);
   const isOwnListing =
     isAuthenticated && currentUserId != null && currentUserId === listing.sellerId;
+
+  function handleBuy() {
+    if (isAuthenticated) {
+      window.location.hash = `#/checkout/fixed/${listing.id}`;
+    } else {
+      onRequireLogin();
+    }
+  }
+
+  function handleOffer() {
+    if (!isAuthenticated) {
+      onRequireLogin();
+    } else {
+      setOfferDone(null);
+      setOfferOpen(true);
+    }
+  }
 
   function messageSeller() {
     if (!isAuthenticated) {
@@ -58,6 +100,8 @@ export default function ListingDetail({
     onOfferCreated?.(created);
   }
 
+  const auctionStatus = listing.auction?.status ?? null;
+
   return (
     <div className="content detail-page">
       <a className="back-link" href="#/">
@@ -71,7 +115,9 @@ export default function ListingDetail({
               <div className="listing-art listing-art-large" aria-hidden="true">
                 <span>{listing.title.charAt(0).toUpperCase()}</span>
               </div>
-              <span className={listing.isAuction ? "badge badge-auction" : "badge badge-fixed"}>
+              <span
+                className={`listing-pill ${listing.isAuction ? "pill pill-auction" : "pill"}`}
+              >
                 {listing.isAuction ? "Auction" : "Fixed price"}
               </span>
               <button
@@ -80,16 +126,15 @@ export default function ListingDetail({
                 onClick={() => onToggleFavorite(listing.id)}
                 aria-pressed={isFavorite}
                 aria-label={isFavorite ? "Remove from favorites" : "Save to favorites"}
-                title={isFavorite ? "Saved (on this device)" : "Save"}
+                title={isFavorite ? "Saved" : "Save"}
               >
-                ♥
+                <span aria-hidden="true">♥</span>
               </button>
             </div>
             <p className="muted small">
               {listing.imageCount === 0
                 ? "No photos provided by the seller."
-                : `${listing.imageCount} photo${listing.imageCount === 1 ? "" : "s"} on file.`}{" "}
-              ({galleryCount} view{galleryCount === 1 ? "" : "s"})
+                : `${listing.imageCount} photo${listing.imageCount === 1 ? "" : "s"} on file.`}
             </p>
           </div>
 
@@ -102,7 +147,7 @@ export default function ListingDetail({
           <dl className="detail-facts">
             <div>
               <dt>Status</dt>
-              <dd><span className="pill">{listing.status}</span></dd>
+              <dd><span className={statusPillClass(listing.status)}>{listing.status}</span></dd>
             </div>
             <div>
               <dt>Location</dt>
@@ -125,39 +170,63 @@ export default function ListingDetail({
           <h2>About this listing</h2>
           <p className="detail-description">{listing.description || "No description provided."}</p>
 
+          {listing.isAuction && (
+            <AuctionPanel
+              listingId={listing.id}
+              isAuthenticated={isAuthenticated}
+              currentUserId={currentUserId}
+              authFetch={authFetch}
+              onRequireLogin={onRequireLogin}
+            />
+          )}
+        </div>
+
+        <div className="buy-box">
+          <p className="buy-status">
+            {listing.isAuction ? (
+              <span className={statusPillClass(auctionStatus ?? "LIVE")}>
+                {auctionStatus === "LIVE" ? "Live auction" : (auctionStatus ?? "Auction")}
+              </span>
+            ) : (
+              <span className={statusPillClass(listing.status)}>{listing.status}</span>
+            )}
+          </p>
+          <p className="buy-price">
+            {listing.priceLabel}
+            {listing.priceNote && <span className="price-note"> · {listing.priceNote}</span>}
+          </p>
+          {listing.isAuction && listing.auction?.ends_at && (
+            <p className="buy-ends">Ends {formatDateTime(listing.auction.ends_at)}</p>
+          )}
           {!listing.isAuction && (
-            <div className="detail-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  if (isAuthenticated) {
-                    window.location.hash = `#/checkout/fixed/${listing.id}`;
-                  } else {
-                    onRequireLogin();
-                  }
-                }}
-              >
+            <>
+              <button type="button" className="btn btn-bid" onClick={handleBuy}>
                 Buy Now
               </button>
               {!isOwnListing && (
                 <button
                   type="button"
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    if (!isAuthenticated) {
-                      onRequireLogin();
-                    } else {
-                      setOfferDone(null);
-                      setOfferOpen(true);
-                    }
-                  }}
+                  className="btn btn-ghost btn-block"
+                  onClick={handleOffer}
                 >
                   Make an Offer
                 </button>
               )}
-            </div>
+            </>
           )}
+          {listing.isAuction && (
+            <button type="button" className="btn btn-bid" onClick={scrollToBids}>
+              Place a Bid
+            </button>
+          )}
+          <button
+            type="button"
+            className={isFavorite ? "btn btn-ghost btn-block is-saved" : "btn btn-ghost btn-block"}
+            onClick={() => onToggleFavorite(listing.id)}
+            aria-pressed={isFavorite}
+          >
+            {isFavorite ? "♥ Saved" : "♡ Save to Favorites"}
+          </button>
           {offerDone && (
             <p className="form-ok" role="status">
               {offerDone} <a href="#/offers">View My Offers</a>
@@ -168,16 +237,6 @@ export default function ListingDetail({
               listing={listing}
               onClose={() => setOfferOpen(false)}
               onSubmit={submitOffer}
-            />
-          )}
-
-          {listing.isAuction && (
-            <AuctionPanel
-              listingId={listing.id}
-              isAuthenticated={isAuthenticated}
-              currentUserId={currentUserId}
-              authFetch={authFetch}
-              onRequireLogin={onRequireLogin}
             />
           )}
         </div>
@@ -258,6 +317,18 @@ export default function ListingDetail({
           </div>
         </section>
       )}
+
+      <div className="detail-stickybar" role="group" aria-label="Listing actions">
+        {!listing.isAuction ? (
+          <button type="button" className="btn btn-bid" onClick={handleBuy}>
+            Buy Now · {listing.priceLabel}
+          </button>
+        ) : (
+          <button type="button" className="btn btn-bid" onClick={scrollToBids}>
+            Place a Bid
+          </button>
+        )}
+      </div>
     </div>
   );
 }

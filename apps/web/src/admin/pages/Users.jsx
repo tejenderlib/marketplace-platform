@@ -13,6 +13,7 @@ import {
   Pagination,
   describeActionError,
   formatDateTime,
+  StatusPill,
   useAdminData,
 } from "../components/ui.jsx";
 import ModerationDialog from "../components/ModerationDialog.jsx";
@@ -153,7 +154,7 @@ export function UserDetailPage({ id }) {
           <h2>Account</h2>
           <dl className="kv">
             <dt>Email</dt><dd>{data.email}</dd>
-            <dt>Status</dt><dd><span className="pill">{data.status}</span></dd>
+            <dt>Status</dt><dd><StatusPill value={data.status} /></dd>
             <dt>Roles</dt><dd>{data.roles.join(", ") || "—"}</dd>
             <dt>Joined</dt><dd>{formatDateTime(data.created_at)}</dd>
             <dt>Updated</dt><dd>{formatDateTime(data.updated_at)}</dd>
@@ -209,7 +210,7 @@ function UserRow({ user, onChanged }) {
           </div>
         )}
       </td>
-      <td><span className="pill">{user.status}</span></td>
+      <td><StatusPill value={user.status} /></td>
       <td>{user.roles.join(", ") || "—"}</td>
       <td>{formatDateTime(user.created_at)}</td>
       <td>

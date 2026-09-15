@@ -47,13 +47,14 @@ server-priced. Smoke suites for every domain.
 ## Phase 4 — Admin
 
 Admin read dashboards (users, listings, orders, auctions, payments,
-reviews, reports, support, moderation audit) and moderation actions with
-audit trail.
+reviews, reports, support, moderation audit) and post-publication
+moderation actions (remove/restore listings) with audit trail.
 
 ## Phase 5 — Storefront
 
 Buyer SPA: discovery, detail, favorites, checkout, payment, orders.
-Seller SPA: listing management, submit workflow, seller orders.
+Seller SPA: listing management, direct-publish workflow (DRAFT -> ACTIVE
+immediately; post-publication admin moderation), seller orders.
 Verified manually; no automated FE tests.
 
 ## Phase 6 — Marketplace/User Interaction

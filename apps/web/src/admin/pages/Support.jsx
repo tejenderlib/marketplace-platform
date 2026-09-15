@@ -13,6 +13,7 @@ import {
   Pagination,
   describeActionError,
   formatDateTime,
+  StatusPill,
   useAdminData,
 } from "../components/ui.jsx";
 
@@ -71,8 +72,8 @@ export function SupportPage() {
                   <tr key={ticket.id}>
                     <td><a href={`#/admin/support/${ticket.id}`}>{ticket.subject}</a></td>
                     <td className="mono small">{ticket.user_id.slice(0, 8)}…</td>
-                    <td><span className="pill">{ticket.status}</span></td>
-                    <td><span className="pill">{ticket.priority}</span></td>
+                    <td><StatusPill value={ticket.status} /></td>
+                    <td><StatusPill value={ticket.priority} /></td>
                     <td>{formatDateTime(ticket.created_at)}</td>
                     <td>{formatDateTime(ticket.updated_at)}</td>
                   </tr>
@@ -170,8 +171,8 @@ export function SupportDetailPage({ id }) {
           <h2>Ticket</h2>
           <dl className="kv">
             <dt>User</dt><dd className="mono small">{data.user_id}</dd>
-            <dt>Status</dt><dd><span className="pill">{data.status}</span></dd>
-            <dt>Priority</dt><dd><span className="pill">{data.priority}</span></dd>
+            <dt>Status</dt><dd><StatusPill value={data.status} /></dd>
+            <dt>Priority</dt><dd><StatusPill value={data.priority} /></dd>
             <dt>Opened</dt><dd>{formatDateTime(data.created_at)}</dd>
             <dt>Updated</dt><dd>{formatDateTime(data.updated_at)}</dd>
           </dl>

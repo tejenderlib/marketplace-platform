@@ -1,11 +1,14 @@
-/* Admin area: distinct dark-slate chrome, same type scale as the storefront. */
+/* Admin area: light Industrial Premium chrome, same tokens as the storefront
+   (styles.css :root variables apply document-wide, so var() works here).
+   Layout and workflows are unchanged — this file only aligns surfaces,
+   states, and density with Phase 10.2. */
 
 .admin-shell {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #eef1f5;
-  color: #172033;
+  background: var(--canvas);
+  color: var(--ink);
 }
 
 .admin-topbar {
@@ -13,7 +16,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.6rem 1rem;
-  background: #16232b;
+  background: var(--brand);
   color: #fff;
   position: sticky;
   top: 0;
@@ -22,7 +25,7 @@
 
 .admin-brand {
   font-weight: 800;
-  color: #ffce32;
+  color: var(--accent);
   text-decoration: none;
   margin-right: auto;
 }
@@ -39,25 +42,37 @@
 .menu-toggle {
   display: none;
   background: transparent;
-  border: 1px solid #3a4b54;
-  border-radius: 0.4rem;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: var(--radius-control);
   color: #fff;
   font-size: 1.1rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
   padding: 0.25rem 0.6rem;
   cursor: pointer;
+}
+
+.menu-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .admin-body {
   display: flex;
   flex: 1;
   min-height: 0;
+  align-items: flex-start;
 }
 
 .admin-sidebar {
-  width: 13rem;
+  width: 15rem;
   flex-shrink: 0;
-  background: #fff;
-  border-right: 1px solid #dfe5ec;
+  position: sticky;
+  top: 3.4rem;
+  max-height: calc(100vh - 3.4rem);
+  overflow-y: auto;
+  background: var(--card);
+  border-right: 1px solid var(--border);
   padding: 1rem 0.75rem;
 }
 
@@ -69,21 +84,27 @@
 
 .admin-sidebar a {
   display: block;
-  padding: 0.55rem 0.75rem;
-  border-radius: 0.5rem;
-  color: #33414f;
+  padding: 0.6rem 0.75rem;
+  min-height: 2.75rem;
+  border-radius: var(--radius-control);
+  color: var(--text);
   text-decoration: none;
   font-weight: 600;
   font-size: 0.95rem;
 }
 
 .admin-sidebar a:hover {
-  background: #f0f4f8;
+  background: var(--surface-soft);
 }
 
 .admin-sidebar a.active {
-  background: #16232b;
+  background: var(--brand);
   color: #fff;
+}
+
+.admin-sidebar a:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 1px;
 }
 
 .sidebar-heading {
@@ -92,7 +113,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #8a97a5;
+  color: var(--muted);
 }
 
 .sidebar-soon {
@@ -109,7 +130,7 @@
 
 .sidebar-foot a {
   padding: 0;
-  color: #00575f;
+  color: var(--link);
   font-weight: 600;
 }
 
@@ -133,9 +154,9 @@
 }
 
 .admin-login {
-  background: #fff;
-  border: 1px solid #dfe5ec;
-  border-radius: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
   padding: 2rem;
   width: min(100%, 24rem);
   display: flex;
@@ -157,9 +178,15 @@
 
 .admin-login input {
   padding: 0.6rem 0.8rem;
-  border: 1px solid #dfe5ec;
-  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
   font-size: 1rem;
+  min-height: 2.75rem;
+}
+
+.admin-login input:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 0;
 }
 
 .admin-center {
@@ -169,17 +196,22 @@
 
 /* Stats */
 
+.admin-section-title {
+  margin: 1.5rem 0 0;
+  font-size: 1.05rem;
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
   gap: 0.75rem;
-  margin-top: 1rem;
+  margin-top: 0.75rem;
 }
 
 .stat-card {
-  background: #fff;
-  border: 1px solid #dfe5ec;
-  border-radius: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
   padding: 0.9rem 1rem;
 }
 
@@ -187,13 +219,29 @@
   margin: 0;
   font-size: 1.4rem;
   font-weight: 800;
-  color: #16232b;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
-  color: #5c6b7a;
+  color: var(--muted);
+}
+
+a.stat-card {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+a.stat-card:hover {
+  border-color: var(--link);
+}
+
+a.stat-card:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
 }
 
 /* Filters + tables */
@@ -212,25 +260,33 @@
   gap: 0.25rem;
   font-size: 0.82rem;
   font-weight: 700;
-  color: #5c6b7a;
+  color: var(--muted);
 }
 
 .filter-field input,
 .filter-field select {
   padding: 0.55rem 0.7rem;
-  border: 1px solid #dfe5ec;
-  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
   font-size: 0.95rem;
-  background: #fff;
-  color: #172033;
+  background: var(--card);
+  color: var(--ink);
   max-width: 12rem;
+  min-height: 2.5rem;
+}
+
+.filter-field input:focus-visible,
+.filter-field select:focus-visible,
+.admin-table a:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 1px;
 }
 
 .table-scroll {
   overflow-x: auto;
-  background: #fff;
-  border: 1px solid #dfe5ec;
-  border-radius: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
 }
 
 .admin-table {
@@ -243,7 +299,7 @@
 .admin-table td {
   text-align: left;
   padding: 0.65rem 0.9rem;
-  border-bottom: 1px solid #eef1f5;
+  border-bottom: 1px solid var(--hairline);
   vertical-align: top;
 }
 
@@ -251,23 +307,68 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #5c6b7a;
+  color: var(--muted);
 }
 
 .admin-table a {
-  color: #00575f;
+  color: var(--link);
   font-weight: 600;
+}
+
+.admin-table td .btn + .btn {
+  margin-left: 0.4rem;
 }
 
 .pill {
   display: inline-block;
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
-  background: #eef3f6;
-  border: 1px solid #d5dde4;
+  background: var(--neutral-bg);
+  border: 1px solid var(--neutral-border);
   font-size: 0.75rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+/* Compound selectors so shared status variants win over the base above
+   regardless of stylesheet order. */
+.pill.pill-active,
+.pill.pill-live,
+.pill.pill-reserve,
+.pill.pill-won,
+.pill.pill-paid {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success);
+}
+
+.pill.pill-ending,
+.pill.pill-outbid,
+.pill.pill-pending {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning);
+}
+
+.pill.pill-sold,
+.pill.pill-shipped,
+.pill.pill-delivered {
+  background: var(--info-bg);
+  border-color: var(--border);
+  color: var(--info);
+}
+
+.pill.pill-cancelled,
+.pill.pill-error {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+.pill.pill-auction {
+  background: var(--auction-bg);
+  border-color: var(--auction-border);
+  color: var(--auction);
 }
 
 .mono {
@@ -280,7 +381,7 @@
 }
 
 .muted {
-  color: #5c6b7a;
+  color: var(--muted);
 }
 
 .pagination {
@@ -302,9 +403,9 @@
 }
 
 .detail-card {
-  background: #fff;
-  border: 1px solid #dfe5ec;
-  border-radius: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
   padding: 1.1rem 1.25rem;
   margin-bottom: 1rem;
   min-width: 0;
@@ -323,7 +424,7 @@
 }
 
 .kv dt {
-  color: #5c6b7a;
+  color: var(--muted);
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -354,23 +455,28 @@
 .back-link {
   display: inline-block;
   margin-bottom: 0.75rem;
-  color: #00575f;
+  color: var(--link);
   font-weight: 700;
   text-decoration: none;
 }
 
+.back-link:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
 .admin-state {
-  background: #fff;
-  border: 1px dashed #dfe5ec;
-  border-radius: 0.75rem;
+  background: var(--card);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-card);
   padding: 2rem 1rem;
   text-align: center;
-  color: #5c6b7a;
+  color: var(--muted);
   margin-top: 1rem;
 }
 
 .admin-error {
-  border-color: #e5a49f;
+  border-color: var(--danger-border);
 }
 
 .form-error {
@@ -455,14 +561,14 @@
 }
 
 .notice-ok {
-  background: #e3f2ec;
-  border: 1px solid #9ed3b6;
-  color: #0c6b3f;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success);
 }
 
 .notice-err {
-  background: #fdecea;
-  border: 1px solid #e5a49f;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
   color: #8f1a15;
 }
 
@@ -477,8 +583,8 @@
 }
 
 .dialog {
-  background: #fff;
-  border-radius: 0.75rem;
+  background: var(--card);
+  border-radius: var(--radius-card);
   padding: 1.5rem;
   width: min(100%, 28rem);
   max-height: 90vh;
@@ -502,15 +608,21 @@
 
 .dialog textarea {
   padding: 0.6rem 0.8rem;
-  border: 1px solid #dfe5ec;
-  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
   font: inherit;
   resize: vertical;
+}
+
+.dialog textarea:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 0;
 }
 
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.25rem;
 }

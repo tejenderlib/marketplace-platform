@@ -3,15 +3,13 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../api/client.js";
 import { getTicket, getTicketMessages, replyToTicket } from "../api/support.js";
 import { useAuth } from "../auth/AuthContext.jsx";
-
-function formatDateTime(value) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
-}
+import { humanize, ticketPriorityPill, ticketStatusBlurb, ticketStatusPill } from "../components/statusPills.js";
+import TicketContextCard from "../components/support/TicketContextCard.jsx";
+import TicketConversation from "../components/support/TicketConversation.jsx";
 
 const CLOSED = ["RESOLVED", "CLOSED"];
 
-export default function SupportDetailPage({ id }) {
+export default function SupportDetailPage({ id, backHref = "#/support", backLabel = "Support" }) {
   const { isAuthenticated, authFetch, redirectToLogin } = useAuth();
   const [state, setState] = useState({ loading: true, error: null, ticket: null });
   const [messages, setMessages] = useState({ loading: true, error: null, items: [] });
@@ -58,7 +56,7 @@ export default function SupportDetailPage({ id }) {
   if (state.error) {
     return (
       <div className="content">
-        <a className="back-link" href="#/support">← Support</a>
+        <a className="back-link" href={backHref}>← {backLabel}</a>
         <div className="empty-state" role="alert">
           <p>{state.error}</p>
           <button type="button" className="btn btn-primary" onClick={load}>Retry</button>
@@ -70,6 +68,7 @@ export default function SupportDetailPage({ id }) {
 
   const ticket = state.ticket;
   const isClosed = CLOSED.includes(ticket.status);
+  const blurb = ticketStatusBlurb(ticket.status);
 
   async function handleReply(event) {
     event.preventDefault();
@@ -95,50 +94,42 @@ export default function SupportDetailPage({ id }) {
 
   return (
     <div className="content">
-      <a className="back-link" href="#/support">← Support</a>
+      <a className="back-link" href={backHref}>← {backLabel}</a>
+      <p className="muted small">Ticket #{ticket.id.slice(0, 8)}</p>
       <h1>{ticket.subject}</h1>
+      <p>
+        <span className={ticketStatusPill(ticket.status)}>{humanize(ticket.status)}</span>{" "}
+        <span className={ticketPriorityPill(ticket.priority)}>{humanize(ticket.priority)} priority</span>
+      </p>
+      {blurb && <p className="muted small">{blurb}</p>}
+      <TicketContextCard ticket={ticket} />
       <p className="muted small">
         Opened {formatDateTime(ticket.created_at)} · Last updated {formatDateTime(ticket.updated_at)}
-      </p>
-      <p>
-        <span className="pill">{ticket.status}</span>{" "}
-        <span className="pill">{ticket.priority} priority</span>
       </p>
 
       {messages.loading && <p className="muted" role="status">Loading messages…</p>}
       {!messages.loading && messages.error && (
         <p className="form-error" role="alert">{messages.error}</p>
       )}
-      <div className="ticket-thread">
-        <div className="bubble theirs">
-          <p>{ticket.description}</p>
-          <span className="muted small">{formatDateTime(ticket.created_at)}</span>
-        </div>
-        {messages.items.map((message) => {
-          const fromMe = message.author_id != null && message.author_id === state.ticket.user_id;
-          return (
-            <div key={message.id} className={fromMe ? "bubble mine" : "bubble theirs"}>
-              <p>{message.body}</p>
-              <span className="muted small">
-                {message.author_id == null ? "Support · " : ""}{formatDateTime(message.created_at)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      <TicketConversation ticket={ticket} messages={messages.items} />
 
       {isClosed ? (
         <p className="muted small">This ticket is {ticket.status.toLowerCase()}. New replies are disabled.</p>
       ) : (
         <form className="thread-compose" onSubmit={handleReply}>
           {sendError && <p className="form-error" role="alert">{sendError}</p>}
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Add a message to your ticket…"
-            rows={3}
-            required
-          />
+          <label className="field" htmlFor="support-reply">
+            <span className="visually-hidden">Reply to this ticket</span>
+            <textarea
+              id="support-reply"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Add a message to your ticket…"
+              rows={3}
+              required
+            />
+            <span className="muted small" aria-live="polite">{draft.length} characters</span>
+          </label>
           <button type="submit" className="btn btn-primary" disabled={sending || !draft.trim()}>
             {sending ? "Sending…" : "Send reply"}
           </button>
@@ -146,4 +137,9 @@ export default function SupportDetailPage({ id }) {
       )}
     </div>
   );
+}
+
+function formatDateTime(value) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }

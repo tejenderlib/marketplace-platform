@@ -5,6 +5,10 @@ import { formatPrice } from "../data/listings.js";
 import { auctionCheckout, createAddress, listAddresses, myOrders } from "../api/checkout.js";
 import { fetchListing } from "../api/catalog.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import AddressPicker from "../components/checkout/AddressPicker.jsx";
+import CheckoutSteps from "../components/checkout/CheckoutSteps.jsx";
+import CheckoutSummary from "../components/checkout/CheckoutSummary.jsx";
+import StatusPill from "../components/checkout/StatusPill.jsx";
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -197,21 +201,10 @@ export default function AuctionCheckoutPage({ resultId }) {
   const shipping = 0;
 
   return (
-    <div className="content">
+    <div className="content co-page">
       <a className="back-link" href="#/">← Back</a>
-      <ol className="steps" aria-label="Checkout progress">
-        {STEPS.map((label, i) => (
-          <li key={label} className={i === 0 ? "step current" : "step"}>
-            <span>{i + 1}. {label}</span>
-          </li>
-        ))}
-      </ol>
-      <h1>
-        Auction Winner Checkout{" "}
-        <span className="pill" title="Only the winning bidder can check out">
-          Auction Winner
-        </span>
-      </h1>
+      <CheckoutSteps steps={STEPS} current={0} />
+      <h1>Auction Winner Checkout</h1>
       {resultState.loading && <p className="muted" role="status">Loading checkout…</p>}
       {resultState.error && (
         <div className="empty-state" role="alert">
@@ -220,114 +213,79 @@ export default function AuctionCheckoutPage({ resultId }) {
         </div>
       )}
       {result && (
-        <form onSubmit={submit}>
-          <div className="detail-grid">
-            <div className="detail-card">
-              <h2>Winning bid</h2>
-              <dl className="kv">
-                <dt>Item</dt><dd>{listing?.title ?? "…"}</dd>
-                <dt>Seller</dt><dd>{listing?.seller?.display_name ?? "Seller"}</dd>
-                <dt>Final price</dt><dd>{formatPrice(subtotal)}</dd>
-                <dt>Shipping</dt><dd>{formatPrice(shipping)} (server-calculated)</dd>
-                <dt>Total</dt><dd><strong>{formatPrice(subtotal + shipping)}</strong></dd>
-                <dt>Status</dt><dd><span className="pill">{result.status}</span></dd>
-                {result.checkout_expires_at && result.status === "AWAITING_CHECKOUT" && (
-                  <>
-                    <dt>Checkout until</dt><dd>{formatDateTime(result.checkout_expires_at)}</dd>
-                    <dt>Remaining</dt><dd>{expired ? "expired" : countdownText(result.checkout_expires_at)}</dd>
-                  </>
-                )}
-              </dl>
+        <form onSubmit={submit} className="co-layout">
+          <div className="co-main">
+            <section className="co-card" aria-labelledby="co-win-heading">
+              <h2 id="co-win-heading">Winning bid</h2>
+              <div className="co-item">
+                <span className="co-thumb" aria-hidden="true">
+                  {(listing?.title ?? "A").charAt(0).toUpperCase()}
+                </span>
+                <div className="co-item-text">
+                  <p className="co-item-title">{listing?.title ?? "…"}</p>
+                  <p className="muted small">
+                    Won from {listing?.seller?.display_name ?? "Seller"}
+                  </p>
+                </div>
+              </div>
+              <p className="co-offer-price">
+                <span>Winning bid</span>
+                <strong>{formatPrice(subtotal)}</strong>
+              </p>
+              {result.checkout_expires_at && result.status === "AWAITING_CHECKOUT" && (
+                <p className={expired ? "form-error" : "muted"} role={expired ? "alert" : undefined}>
+                  Checkout until {formatDateTime(result.checkout_expires_at)}
+                  {" · "}
+                  {expired ? "expired" : countdownText(result.checkout_expires_at)}
+                </p>
+              )}
               {existingOrderId && (
                 <p className="form-ok" role="status">
                   An order already exists for this win.{" "}
                   <a href={`#/checkout/payment/${existingOrderId}`}>Continue to payment</a>
                 </p>
               )}
-              {expired && (
-                <p className="form-error" role="alert">
-                  The checkout window has expired. The backend decides expiry authoritatively.
-                </p>
-              )}
-              <label>
-                <span>Contact email</span>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <label className="field">
+                <span>
+                  Contact email <span className="req" aria-hidden="true">*</span>
+                </span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
               </label>
-            </div>
-            <div className="detail-card">
-              <h2>Delivery address</h2>
-              {addresses.loading && <p className="muted">Loading addresses…</p>}
-              {addresses.error && <p className="form-error">{addresses.error}</p>}
-              {!addresses.loading && addresses.items.length === 0 && !showNewAddress && (
-                <p className="muted">No saved addresses yet — add one below.</p>
-              )}
-              {addresses.items.map((addr) => (
-                <label key={addr.id} className="address-option">
-                  <input
-                    type="radio"
-                    name="address"
-                    checked={addressId === addr.id}
-                    onChange={() => setAddressId(addr.id)}
-                  />
-                  <span>
-                    <strong>{addr.recipient_name}</strong> — {addr.line1}, {addr.city}
-                    {addr.is_default ? " · default" : ""}
-                  </span>
-                </label>
-              ))}
-              <button type="button" className="btn btn-ghost" onClick={() => setShowNewAddress((v) => !v)}>
-                {showNewAddress ? "Hide new address" : "Add new address"}
-              </button>
-            </div>
+            </section>
+            <AddressPicker
+              addresses={addresses}
+              addressId={addressId}
+              onSelect={setAddressId}
+              showNew={showNewAddress}
+              onToggleNew={() => setShowNewAddress((v) => !v)}
+              newAddress={newAddress}
+              onNewChange={(key, value) => setNewAddress((prev) => ({ ...prev, [key]: value }))}
+              busy={busy}
+              onSave={addAddress}
+            />
           </div>
-
-          {showNewAddress && (
-            <div className="detail-card">
-              <h2>New address (India only)</h2>
-              <div className="form-grid">
-                <label><span>Recipient *</span>
-                  <input value={newAddress.recipient_name} onChange={(e) => setNewAddress({ ...newAddress, recipient_name: e.target.value })} required={showNewAddress} />
-                </label>
-                <label><span>Address line 1 *</span>
-                  <input value={newAddress.line1} onChange={(e) => setNewAddress({ ...newAddress, line1: e.target.value })} required={showNewAddress} />
-                </label>
-                <label><span>City *</span>
-                  <input value={newAddress.city} onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })} required={showNewAddress} />
-                </label>
-                <label><span>State</span>
-                  <input value={newAddress.region} onChange={(e) => setNewAddress({ ...newAddress, region: e.target.value })} />
-                </label>
-                <label><span>PIN code</span>
-                  <input value={newAddress.postal_code} onChange={(e) => setNewAddress({ ...newAddress, postal_code: e.target.value })} inputMode="numeric" />
-                </label>
-                <label><span>Phone</span>
-                  <input value={newAddress.phone} onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })} type="tel" />
-                </label>
-                <label><span>Country</span>
-                  <select value={newAddress.country} onChange={(e) => setNewAddress({ ...newAddress, country: e.target.value })}>
-                    <option value="IN">India (IN)</option>
-                  </select>
-                </label>
-              </div>
-              <button type="button" className="btn btn-ghost" disabled={busy} onClick={addAddress}>
-                Save address
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button
-            type="submit"
-            className="btn btn-primary btn-block"
-            disabled={busy || !addressId || expired || result.status !== "AWAITING_CHECKOUT"}
-          >
-            {busy ? "Placing order…" : `Place order · ${formatPrice(subtotal + shipping)}`}
-          </button>
-          <p className="muted small">Winner, price, and total come from the server. Double-clicks create one order.</p>
+          <CheckoutSummary
+            eyebrow="Auction win"
+            title={listing?.title ?? "Winning bid"}
+            sourcePill={<StatusPill status={result.status} />}
+            rows={[
+              { label: "Winning bid", value: formatPrice(subtotal), strong: true },
+              { label: "Shipping", value: `${formatPrice(shipping)} (server-calculated)` },
+            ]}
+            totalLabel="Total"
+            totalMinor={subtotal + shipping}
+            error={error}
+            busy={busy}
+            submitDisabled={!addressId || expired || result.status !== "AWAITING_CHECKOUT"}
+            submitLabel={`Place order · ${formatPrice(subtotal + shipping)}`}
+            note="Winner, price, and total come from the server. Double-clicks create one order."
+          />
         </form>
       )}
     </div>

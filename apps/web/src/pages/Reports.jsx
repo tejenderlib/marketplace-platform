@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../api/client.js";
 import { myReports } from "../api/reports.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import { humanize, reportStatusPill } from "../components/statusPills.js";
 
 const LIMIT = 20;
 
@@ -72,33 +73,26 @@ export default function ReportsPage() {
       )}
       {state.items.length > 0 && (
         <>
-          <div className="table-scroll">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Reported</th>
-                  <th>Reason</th>
-                  <th>Details</th>
-                  <th>Status</th>
-                  <th>Submitted</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.items.map((report) => (
-                  <tr key={report.id}>
-                    <td>
-                      {report.target_type}
-                      {report.target_listing_id ? " listing" : " user"}
-                    </td>
-                    <td><span className="pill">{report.reason}</span></td>
-                    <td className="muted small">{report.details ?? "—"}</td>
-                    <td><span className="pill">{report.status}</span></td>
-                    <td>{formatDateTime(report.created_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="order-list">
+            {state.items.map((report) => (
+              <li key={report.id} className="order-card">
+                <div className="order-main">
+                  <p className="order-title">
+                    {report.target_type}
+                    {report.target_listing_id ? " listing" : " user"}
+                  </p>
+                  <p className="muted small">
+                    {report.details ?? "No details provided."}
+                  </p>
+                  <p className="order-pills">
+                    <span className="pill">{humanize(report.reason)}</span>
+                    <span className={reportStatusPill(report.status)}>{humanize(report.status)}</span>
+                  </p>
+                  <p className="muted small">Submitted {formatDateTime(report.created_at)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
           <div className="pagination storefront-pagination">
             <button type="button" className="btn btn-ghost" disabled={page <= 1} onClick={() => setOffset(offset - LIMIT)}>
               ← Prev

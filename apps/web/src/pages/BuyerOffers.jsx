@@ -105,14 +105,16 @@ export default function BuyerOffersPage() {
                     <td><span className={`status-pill status-${offer.status}`}>{offer.status}</span></td>
                     <td>{formatDateTime(offer.created_at)}</td>
                     <td>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelectedId(offer.id)}>
-                        View
-                      </button>
-                      {offer.status === "ACCEPTED" && (
-                        <a className="btn btn-primary btn-sm" href={`#/checkout/offer/${offer.id}`}>
-                          Proceed to checkout
-                        </a>
-                      )}
+                      <span className="offer-actions">
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelectedId(offer.id)}>
+                          View
+                        </button>
+                        {offer.status === "ACCEPTED" && (
+                          <a className="btn btn-primary btn-sm" href={`#/checkout/offer/${offer.id}`}>
+                            Proceed to checkout
+                          </a>
+                        )}
+                      </span>
                     </td>
                   </tr>
                 ))}

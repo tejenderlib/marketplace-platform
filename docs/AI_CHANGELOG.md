@@ -214,6 +214,32 @@ new verification flow; **phase8_final_smoke** (55 checks) covers
   rewritten with Mermaid diagrams.
 - Documentation-only change: no application behavior touched.
 
+## Post-publication moderation lifecycle change (working tree, current task)
+
+- Product decision: seller listings publish DRAFT -> ACTIVE immediately
+  (POST /catalog/listings/{id}/submit, same validation as before,
+  published_at stamped); no approval queue or seller review wait.
+  Admin moderation is post-publication: ACTIVE -> REMOVED -> ACTIVE
+  (remove/restore with reason, audit row, seller notification).
+- Backend: `submit_listing` publishes to ACTIVE; seller PATCH map keeps
+  DRAFT -> ARCHIVED only (activation only via validated /submit);
+  removed admin approve/reject endpoints (404/405 now); kept
+  PENDING_REVIEW/REJECTED + LISTING_APPROVED/LISTING_REJECTED enum
+  values for historical rows; public visibility unchanged
+  (ACTIVE/RESERVED/SOLD only). No migration required.
+- Frontend: Sell wizard "Publish Listing" with live-success copy;
+  SellerDashboard filters DRAFT/ACTIVE/RESERVED/SOLD/EXPIRED/REMOVED/
+  ARCHIVED, "Publish" direct action, removed-notice, no Fix & Resubmit;
+  admin Listings keeps remove/restore only; admin Dashboard "Needs
+  attention" uses removed listings + open reports + open tickets.
+- Tests: seller_workflow (publish ACTIVE, auth, invalid, fixed/auction,
+  duplicate 409, public visibility, legacy REJECTED path),
+  admin_moderation (remove/restore, approve/reject gone, REMOVED hidden),
+  phase7_remaining (remove/restore notifications), catalog/auction/
+  checkout/order suites via updated `activate_listing` helper.
+- Docs: DECISIONS.md (new record), FLOW.md (seller + moderation flows),
+  PROJECT_STATUS.md, PHASES.md updated.
+
 ## Phase 10 — UI/UX polish
 
 - Not started (planned).

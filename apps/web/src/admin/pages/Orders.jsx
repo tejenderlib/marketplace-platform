@@ -10,6 +10,7 @@ import {
   Loading,
   Pagination,
   formatDateTime,
+  StatusPill,
   useAdminData,
 } from "../components/ui.jsx";
 
@@ -78,7 +79,7 @@ export function OrdersPage() {
                     <td>{order.buyer?.display_name ?? "—"}</td>
                     <td>{order.seller?.display_name ?? "—"}</td>
                     <td>{formatPrice(order.total_minor)}</td>
-                    <td><span className="pill">{order.status}</span></td>
+                    <td><StatusPill value={order.status} /></td>
                     <td>{order.source}</td>
                     <td>{formatDateTime(order.created_at)}</td>
                   </tr>
@@ -108,7 +109,7 @@ export function OrderDetailPage({ id }) {
         <div className="detail-card">
           <h2>Summary</h2>
           <dl className="kv">
-            <dt>Status</dt><dd><span className="pill">{data.status}</span></dd>
+            <dt>Status</dt><dd><StatusPill value={data.status} /></dd>
             <dt>Source</dt><dd>{data.source}</dd>
             <dt>Subtotal</dt><dd>{formatPrice(data.subtotal_minor)}</dd>
             <dt>Shipping</dt><dd>{formatPrice(data.shipping_minor)}</dd>
@@ -124,7 +125,7 @@ export function OrderDetailPage({ id }) {
           {(data.payments ?? []).map((pay) => (
             <dl className="kv" key={pay.id}>
               <dt>Amount</dt><dd>{formatPrice(pay.amount_minor)}</dd>
-              <dt>Status</dt><dd><span className="pill">{pay.status}</span></dd>
+              <dt>Status</dt><dd><StatusPill value={pay.status} /></dd>
               <dt>Provider</dt><dd>{pay.provider}</dd>
               <dt>Reference</dt><dd className="mono small">{pay.provider_reference ?? "—"}</dd>
               <dt>Initiated</dt><dd>{formatDateTime(pay.initiated_at)}</dd>

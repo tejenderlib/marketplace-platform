@@ -91,7 +91,7 @@ def make_auction(cat, seller_tok, admin_tok, bidder_toks, *, reserve_minor,
                            token=seller_tok)
     assert status == 201, (status, listing)
     lid = listing["id"]
-    # Two-step workflow: the auction row must exist before submit/approve.
+    # Two-step workflow: the auction row must exist before publish.
     now = datetime.now(timezone.utc)
     payload = {
         "listing_id": lid, "starting_bid_minor": 10000,

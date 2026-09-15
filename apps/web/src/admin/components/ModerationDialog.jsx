@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const MAX_REASON = 2000;
 
@@ -8,6 +8,14 @@ export default function ModerationDialog({ title, explanation, confirmLabel, onC
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const valid = reason.trim().length > 0 && reason.length <= MAX_REASON;
+
+  useEffect(() => {
+    function onKey(event) {
+      if (event.key === "Escape" && !busy) onCancel();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [busy, onCancel]);
 
   async function submit(e) {
     e.preventDefault();

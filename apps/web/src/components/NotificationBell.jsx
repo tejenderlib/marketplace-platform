@@ -69,7 +69,21 @@ export default function NotificationBell() {
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <span aria-hidden="true">🔔</span>
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M18 8.5a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" />
+          <path d="M13.7 20a2 2 0 0 1-3.4 0" />
+        </svg>
         {unread > 0 && <span className="bell-badge" aria-hidden="true">{unread > 99 ? "99+" : unread}</span>}
       </button>
       {open && (

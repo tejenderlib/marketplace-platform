@@ -3,7 +3,8 @@
     docker compose run --rm -e PYTHONPATH=/app api python tests/admin_moderation_smoke.py
 
 Covers authZ matrix, user suspend/reactivate (+sessions, self-guard),
-listing approve/reject/remove/restore (+invalid transitions), audit
+post-publication listing moderation: ACTIVE -> REMOVED -> ACTIVE
+(+invalid transitions, +approve/reject removal), audit
 exactness/immutability/reads, and concurrent-suspend safety. Cleans up.
 """
 
@@ -186,10 +187,10 @@ def main():
     status, _ = call("POST", f"/admin/users/{seller_id}/suspend", {}, token=admin_tok)
     check("reason required 422", status == 422, status)
 
-    # 3. listing moderation across states
+    # 3. post-publication listing moderation across states
     def seed_listing(title, to_status):
-        # Canonical seeding: submit as seller, approve as admin, then admin
-        # sets terminal states (sellers can no longer PATCH arbitrarily).
+        # Canonical seeding: seller publishes DRAFT -> ACTIVE directly, then
+        # admin sets terminal states (sellers cannot PATCH arbitrarily).
         s, body = call("POST", "/catalog/listings",
                        {"category_id": str(cat), "sale_type": "FIXED_PRICE",
                         "title": title, "condition": "GOOD",
@@ -200,34 +201,30 @@ def main():
         lid = body["id"]
         if to_status == "DRAFT":
             return lid
-        s, _ = call("POST", f"/catalog/listings/{lid}/submit", token=seller_tok)
-        assert s == 200, (s, lid)
-        if to_status == "PENDING_REVIEW":
-            return lid
-        s, _ = call("POST", f"/admin/listings/{lid}/approve",
-                    {"reason": "seed approval"}, token=admin_tok)
-        assert s == 200, (s, lid)
+        s, pub = call("POST", f"/catalog/listings/{lid}/submit", token=seller_tok)
+        assert s == 200 and pub["status"] == "ACTIVE", (s, lid)
         if to_status == "ACTIVE":
             return lid
         s, _ = call("PATCH", f"/catalog/listings/{lid}", {"status": to_status}, token=admin_tok)
         assert s == 200, (s, lid)
         return lid
 
-    pend1 = seed_listing("Mod Pending One", "PENDING_REVIEW")
-    status, ap = call("POST", f"/admin/listings/{pend1}/approve",
-                      {"reason": "looks good"}, token=admin_tok)
-    check("approve ACTIVE", status == 200 and ap["action_type"] == "LISTING_APPROVED", (status, ap))
-    status, _ = call("POST", f"/admin/listings/{pend1}/approve",
-                     {"reason": "again"}, token=admin_tok)
-    check("approve active 409", status == 409, status)
-    pend2 = seed_listing("Mod Pending Two", "PENDING_REVIEW")
-    status, rj = call("POST", f"/admin/listings/{pend2}/reject",
-                      {"reason": "counterfeit"}, token=admin_tok)
-    check("reject REJECTED", status == 200 and rj["action_type"] == "LISTING_REJECTED", (status, rj))
+    # pre-approval endpoints are gone: approve/reject must not be accepted
+    gone_probe = seed_listing("Mod Gone Probe", "ACTIVE")
+    status, _ = call("POST", f"/admin/listings/{gone_probe}/approve",
+                     {"reason": "legacy approve"}, token=admin_tok)
+    check("approve endpoint removed (404/405)", status in (404, 405), status)
+    status, _ = call("POST", f"/admin/listings/{gone_probe}/reject",
+                     {"reason": "legacy reject"}, token=admin_tok)
+    check("reject endpoint removed (404/405)", status in (404, 405), status)
     act1 = seed_listing("Mod Active One", "ACTIVE")
     status, rm = call("POST", f"/admin/listings/{act1}/remove",
                       {"reason": "policy violation"}, token=admin_tok)
     check("remove REMOVED", status == 200 and rm["action_type"] == "LISTING_REMOVED", (status, rm))
+    status, _ = call("GET", f"/catalog/listings/{act1}", token=buyer_tok)
+    check("REMOVED hidden publicly (buyer 404)", status == 404, status)
+    status, own = call("GET", f"/catalog/listings/{act1}", token=seller_tok)
+    check("REMOVED visible to owner", status == 200 and own["status"] == "REMOVED", (status, own))
     sold1 = seed_listing("Mod Sold One", "SOLD")
     status, _ = call("POST", f"/admin/listings/{sold1}/remove",
                      {"reason": "x"}, token=admin_tok)
@@ -242,12 +239,13 @@ def main():
     status, _ = call("POST", f"/admin/listings/{sold1}/restore",
                      {"reason": "x"}, token=admin_tok)
     check("restore SOLD 409", status == 409, status)
-    status, _ = call("POST", f"/admin/listings/{pend1}/restore",
+    status, _ = call("POST", f"/admin/listings/{gone_probe}/restore",
                      {"reason": "x"}, token=admin_tok)
     check("restore ACTIVE 409", status == 409, status)
-    # audit rows for listing targets
-    check("listing audit exact", audit_count(target_listing_id=pend1) == 1
-          and audit_count(target_listing_id=act1) == 3, "")
+    # audit rows for listing targets: gone_probe untouched, act1 has
+    # remove + restore (2 rows)
+    check("listing audit exact", audit_count(target_listing_id=gone_probe) == 0
+          and audit_count(target_listing_id=act1) == 2, "")
     # invalid UUID-ish + missing
     status, _ = call("POST", f"/admin/listings/{uuid.uuid4()}/remove",
                      {"reason": "x"}, token=admin_tok)
@@ -261,9 +259,9 @@ def main():
     status, filt = call("GET", "/admin/moderation?action_type=LISTING_REMOVED", token=admin_tok)
     check("audit action filter", status == 200 and all(i["action_type"] == "LISTING_REMOVED" for i in filt["items"]), filt.get("total"))
     status, by_admin = call("GET", f"/admin/moderation?admin_id={admin_id}", token=admin_tok)
-    check("audit admin filter", status == 200 and by_admin["total"] >= 5, by_admin.get("total"))
+    check("audit admin filter", status == 200 and by_admin["total"] >= 4, by_admin.get("total"))
     status, by_target = call("GET", f"/admin/moderation?target_listing_id={act1}", token=admin_tok)
-    check("audit target filter", status == 200 and by_target["total"] == 3, by_target)
+    check("audit target filter", status == 200 and by_target["total"] == 2, by_target)
     status, one = call("GET", f"/admin/moderation/{rm['id']}", token=admin_tok)
     check("audit detail", status == 200 and one["reason"] == "policy violation"
           and one["admin_id"] == admin_id and one["created_at"] is not None, one)

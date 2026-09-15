@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../api/client.js";
 import { listNotifications, markRead } from "../api/notifications.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import { dayGroup } from "../components/chat/format.js";
 
 const LIMIT = 20;
 
@@ -87,36 +88,52 @@ export default function NotificationsPage() {
       )}
       {state.items.length > 0 && (
         <>
-          <ul className="notification-page-list">
-            {state.items.map((item) => {
-              const href = linkTarget(item.link);
-              return (
-                <li key={item.id} className={item.is_read ? "notification-row is-read" : "notification-row"}>
-                  <div className="notification-row-main">
-                    <span className="notification-type pill">{item.type.replaceAll("_", " ")}</span>
-                    <strong>{item.title}</strong>
-                    {item.body && <p className="muted small">{item.body}</p>}
-                    <span className="muted small">{formatDateTime(item.created_at)}</span>
-                  </div>
-                  <div className="notification-row-actions">
-                    {!item.is_read && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => handleRead(item)}
-                        disabled={busyId === item.id}
+          {["Today", "Yesterday", "Earlier"].map((group) => {
+            const rows = state.items.filter((item) => dayGroup(item.created_at) === group);
+            if (rows.length === 0) return null;
+            return (
+              <section key={group} aria-label={`Notifications from ${group.toLowerCase()}`}>
+                <h2 className="notification-group-heading">{group}</h2>
+                <ul className="notification-page-list">
+                  {rows.map((item) => {
+                    const href = linkTarget(item.link);
+                    return (
+                      <li
+                        key={item.id}
+                        className={item.is_read ? "notification-row is-read" : "notification-row is-unread"}
                       >
-                        Mark read
-                      </button>
-                    )}
-                    {href && (
-                      <a className="btn btn-primary btn-sm" href={href}>View</a>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                        <span className="notification-dot" aria-hidden="true" />
+                        <div className="notification-row-main">
+                          <div className="notification-top">
+                            <span className="notification-type pill">{item.type.replaceAll("_", " ")}</span>
+                            <div className="notification-row-actions">
+                              {!item.is_read && (
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => handleRead(item)}
+                                  disabled={busyId === item.id}
+                                  aria-label={`Mark "${item.title}" as read`}
+                                >
+                                  Mark read
+                                </button>
+                              )}
+                              {href && (
+                                <a className="btn btn-primary btn-sm" href={href}>View</a>
+                              )}
+                            </div>
+                          </div>
+                          <strong>{item.title}</strong>
+                          {item.body && <p className="muted small">{item.body}</p>}
+                          <span className="muted small">{formatDateTime(item.created_at)}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })}
           <div className="pagination storefront-pagination">
             <button type="button" className="btn btn-ghost" disabled={page <= 1} onClick={() => setOffset(offset - LIMIT)}>
               ← Prev

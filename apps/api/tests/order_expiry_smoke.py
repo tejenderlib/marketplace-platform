@@ -111,7 +111,7 @@ def make_auction_cycle(cat, seller_tok, bidder_tok, admin_tok, title):
     assert status == 201, (status, body)
     lid = body["id"]
     # Two-step workflow: the auction row must exist before the listing
-    # can be submitted for approval.
+    # can be published.
     now = datetime.now(timezone.utc)
     status, auc = call("POST", "/auctions",
                       {"listing_id": lid, "starting_bid_minor": 40000,

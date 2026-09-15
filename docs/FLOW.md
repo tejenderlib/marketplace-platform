@@ -55,9 +55,8 @@ Suspended users cannot log in.
 
 ```mermaid
 flowchart TD
-    S[Seller: POST /catalog/listings<br/>DRAFT, FIXED_PRICE, fixed_price_minor] --> SUB[submit]
-    SUB --> PR[PENDING_REVIEW]
-    ADM[Admin: approve] --> ACT[listing ACTIVE]
+    S[Seller: POST /catalog/listings<br/>DRAFT, FIXED_PRICE, fixed_price_minor] --> SUB[POST /submit: publish]
+    SUB --> ACT[listing ACTIVE immediately<br/>visible to buyers]
     B[Buyer: POST /checkout/fixed-price] --> LOCK{{Lock listing FOR UPDATE<br/>must be ACTIVE}}
     LOCK --> O[Order PENDING_PAYMENT<br/>source FIXED_PRICE<br/>price = listing.fixed_price_minor<br/>checkout_expires_at stamped]
     O --> RES[listing ACTIVE -> RESERVED]
@@ -89,7 +88,7 @@ stateDiagram-v2
     ENDED --> SETTLED: payment success<br/>settled_at set
     note right of ENDED
         Listing must already have its auction row
-        before submit/approve (two-step workflow)
+        before publish (two-step workflow)
     end note
 ```
 
@@ -184,25 +183,30 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     [*] --> DRAFT: create
-    DRAFT --> PENDING_REVIEW: submit
-    PENDING_REVIEW --> ACTIVE: admin approve
-    PENDING_REVIEW --> REJECTED: admin reject (may return to DRAFT)
+    DRAFT --> ACTIVE: seller publish (POST /submit,<br/>validated, immediate)
+    note right of ACTIVE
+        PENDING_REVIEW / REJECTED are legacy
+        pre-approval states (historical rows only)
+    end note
     ACTIVE --> RESERVED: checkout reservation
     RESERVED --> ACTIVE: release (cancel/expiry/payment failure)
     ACTIVE --> SOLD: payment success
     RESERVED --> SOLD: payment success
     ACTIVE --> EXPIRED: seller
     ACTIVE --> ARCHIVED: seller
-    ACTIVE --> REMOVED: admin moderation
+    ACTIVE --> REMOVED: admin moderation (post-publication)
     REMOVED --> ACTIVE: admin restore
 ```
 
 ## Moderation flow (admin)
 
+Post-publication moderation: sellers publish DRAFT -> ACTIVE immediately
+(no approval queue); admins moderate live listings with remove/restore.
+
 ```mermaid
 flowchart TD
     subgraph Listings
-        LA[approve / reject / remove / restore]
+        LA[remove / restore<br/>ACTIVE ↔ REMOVED]
     end
     subgraph Users
         US[suspend / reactivate]
@@ -239,7 +243,9 @@ In-app bell fed by domain events, pushed live over WebSocket
 (`/api/v1/ws`, auth via token query param). Types (enum): OFFER_RECEIVED,
 OFFER_ACCEPTED, ORDER_PLACED, PAYMENT_SUCCEEDED, ORDER_SHIPPED,
 ORDER_DELIVERED, AUCTION_WON, AUCTION_ENDED, OUTBID, REVIEW_RECEIVED,
-LISTING_APPROVED, LISTING_REJECTED, LISTING_REMOVED, LISTING_RESTORED.
+LISTING_REMOVED, LISTING_RESTORED (plus legacy LISTING_APPROVED /
+LISTING_REJECTED retained for historical rows; publishing itself emits no
+notification).
 
 ```text
 GET    /notifications, /notifications/unread-count

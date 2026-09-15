@@ -13,6 +13,7 @@ import {
   Pagination,
   describeActionError,
   formatDateTime,
+  StatusPill,
   useAdminData,
 } from "../components/ui.jsx";
 import ModerationDialog from "../components/ModerationDialog.jsx";
@@ -117,7 +118,7 @@ function ReviewRow({ review, onChanged }) {
       <td title={review.reviewee_id}>{review.reviewee_id.slice(0, 8)}</td>
       <td title={comment}>{truncated ?? "—"}</td>
       <td title={review.order_id}>{review.order_id.slice(0, 8)}</td>
-      <td><span className="pill">{review.status}</span></td>
+      <td><StatusPill value={review.status} /></td>
       <td>{formatDateTime(review.created_at)}</td>
       <td>
         {review.status === "ACTIVE" ? (

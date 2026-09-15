@@ -9,25 +9,11 @@ import {
   startConversation,
 } from "../api/messages.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import ConversationRow from "../components/chat/ConversationRow.jsx";
+import MessageBubble from "../components/chat/MessageBubble.jsx";
 
 const LIMIT = 50;
 const POLL_MS = 8000;
-
-function formatWhen(value) {
-  const then = new Date(value);
-  const now = new Date();
-  const diffSeconds = Math.round((now - then) / 1000);
-  if (Number.isNaN(diffSeconds)) return "";
-  if (diffSeconds < 60) return "just now";
-  if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
-  if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
-  return then.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
-}
-
-function formatTime(value) {
-  if (!value) return "";
-  return new Date(value).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
-}
 
 function readHashParams() {
   const hash = window.location.hash;
@@ -223,6 +209,14 @@ export default function MessagesPage() {
   const active =
     conversations.items.find((conv) => conv.id === activeId) ?? null;
   const threadTitle = active ? active.listingTitle : compose?.listingTitle;
+  const showThread = threadTitle != null;
+
+  function closeThread() {
+    setActiveId(null);
+    setCompose(null);
+    setSendError(null);
+    setNote(null);
+  }
 
   return (
     <div className="content">
@@ -237,32 +231,36 @@ export default function MessagesPage() {
           <button type="button" className="btn btn-primary" onClick={loadConversations}>Retry</button>
         </div>
       )}
-      <div className="messages-layout">
-        <aside className="messages-list">
+      <div className={showThread ? "messages-layout show-thread" : "messages-layout"}>
+        <aside className="messages-list" aria-label="Conversations">
+          <h2 className="messages-list-heading">Conversations</h2>
           {!conversations.loading && !conversations.error && conversations.items.length === 0 && (
             <p className="muted small">No conversations yet. Message a seller from a listing.</p>
           )}
           <ul className="conversation-list">
             {conversations.items.map((conv) => (
               <li key={conv.id}>
-                <button
-                  type="button"
-                  className={activeId === conv.id ? "conversation-item is-active" : "conversation-item"}
-                  onClick={() => openConversation(conv)}
-                >
-                  <span className="conversation-name">{conv.recipientName}</span>
-                  <span className="conversation-subject">{conv.listingTitle}</span>
-                  <span className="muted small">{formatWhen(conv.updated_at)}</span>
-                </button>
+                <ConversationRow
+                  conv={conv}
+                  active={activeId === conv.id}
+                  onOpen={openConversation}
+                />
               </li>
             ))}
           </ul>
         </aside>
 
-        <section className="messages-thread">
+        <section className="messages-thread" aria-label="Conversation">
           {threadTitle ? (
             <>
               <header className="thread-header">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm thread-back"
+                  onClick={closeThread}
+                >
+                  ← Back
+                </button>
                 <div>
                   <strong>{threadTitle}</strong>
                   {active && (
@@ -289,15 +287,13 @@ export default function MessagesPage() {
                 {!thread.loading && thread.error && (
                   <p className="form-error small" role="alert">{thread.error}</p>
                 )}
-                {thread.messages.map((message) => {
-                  const mine = message.sender_id === user.id;
-                  return (
-                    <div key={message.id} className={mine ? "bubble mine" : "bubble theirs"}>
-                      <p>{message.body}</p>
-                      <span className="muted small">{formatTime(message.created_at)}</span>
-                    </div>
-                  );
-                })}
+                {thread.messages.map((message) => (
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    mine={message.sender_id === user.id}
+                  />
+                ))}
                 {compose && thread.messages.length === 0 && (
                   <p className="muted small">No messages yet — say hello.</p>
                 )}
@@ -306,7 +302,9 @@ export default function MessagesPage() {
 
               <form className="thread-compose" onSubmit={handleSend}>
                 {sendError && <p className="form-error" role="alert">{sendError}</p>}
+                <label className="visually-hidden" htmlFor="message-draft">Write a message</label>
                 <textarea
+                  id="message-draft"
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   placeholder="Write a message…"

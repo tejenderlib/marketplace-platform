@@ -40,6 +40,39 @@ function describeBidError(error) {
   return "Network error. Is the API running?";
 }
 
+/** Display-only mappings for backend result states (values untouched). */
+function resultStatusLabel(status) {
+  switch (status) {
+    case "NO_BIDS":
+      return "No bids";
+    case "AWAITING_CHECKOUT":
+      return "Awaiting checkout";
+    case "ORDER_CREATED":
+      return "Order created";
+    case "PAYMENT_COMPLETED":
+      return "Payment completed";
+    case "PAYMENT_EXPIRED":
+      return "Payment expired";
+    default:
+      return status ?? "Pending";
+  }
+}
+
+function resultPillClass(status) {
+  switch (status) {
+    case "AWAITING_CHECKOUT":
+      return "pill pill-ending";
+    case "ORDER_CREATED":
+      return "pill pill-sold";
+    case "PAYMENT_COMPLETED":
+      return "pill pill-paid";
+    case "PAYMENT_EXPIRED":
+      return "pill pill-cancelled";
+    default:
+      return "pill";
+  }
+}
+
 export default function AuctionPanel({
   listingId,
   isAuthenticated,
@@ -226,17 +259,46 @@ export default function AuctionPanel({
   const bidable = auction.status === "LIVE";
   const countdownTarget = auction.status === "LIVE" ? auction.ends_at : auction.starts_at;
   const countdown = countdownParts(countdownTarget);
+  const countdownMs = countdownTarget ? new Date(countdownTarget).getTime() - Date.now() : NaN;
+  const urgent = auction.status === "LIVE" && Number.isFinite(countdownMs) && countdownMs <= 2 * 60 * 60 * 1000;
+
+  const STATUS_LABEL = {
+    DRAFT: "Draft",
+    SCHEDULED: "Scheduled",
+    LIVE: "Live",
+    ENDED: "Ended",
+    SETTLED: "Settled",
+    CANCELLED: "Cancelled",
+  };
+  const STATUS_PILL = {
+    LIVE: "pill pill-live",
+    SCHEDULED: "pill",
+    DRAFT: "pill",
+    ENDED: "pill",
+    SETTLED: "pill pill-sold",
+    CANCELLED: "pill pill-cancelled",
+  };
 
   return (
     <div className="auction-panel">
-      <p>
-        <span className="pill">{auction.status}</span>{" "}
+      <div className="auction-head">
+        <span className={STATUS_PILL[auction.status] ?? "pill"}>
+          {STATUS_LABEL[auction.status] ?? auction.status}
+        </span>
         {countdown && auction.status === "LIVE" && (
-          <span className="muted small">Ends in {countdown}</span>
+          <span className={urgent ? "auction-countdown is-urgent" : "auction-countdown"}>
+            Ends in {countdown}
+          </span>
         )}
         {countdown && auction.status === "SCHEDULED" && (
-          <span className="muted small">Starts in {countdown}</span>
+          <span className="auction-countdown">Starts in {countdown}</span>
         )}
+      </div>
+      <p className="auction-current">
+        <span className="auction-current-label">Current bid</span>
+        <strong className="auction-current-value">
+          {auction.current_bid_minor != null ? formatPrice(auction.current_bid_minor) : "No bids yet"}
+        </strong>
       </p>
       <dl className="auction-stats">
         <div>
@@ -320,7 +382,7 @@ export default function AuctionPanel({
       )}
 
       {(auction.status === "ENDED" || auction.status === "SETTLED") && (
-        <div className="result-box">
+        <div className={`result-box is-${(result.data?.status ?? "pending").toLowerCase().replace(/[^a-z]/g, "")}`}>
           <h3>Auction result</h3>
           {result.loading && <p className="muted">Loading result…</p>}
           {result.error && <p className="form-error">{result.error}</p>}
@@ -328,28 +390,33 @@ export default function AuctionPanel({
             <p className="muted">No result published yet.</p>
           )}
           {!result.loading && !result.error && result.data && (
-            <dl className="kv">
-              <dt>Status</dt>
-              <dd><span className="pill">{result.data.status}</span></dd>
-              {result.data.final_price_minor != null && (
-                <>
-                  <dt>Winning bid</dt>
-                  <dd>{formatPrice(result.data.final_price_minor)}</dd>
-                </>
+            <>
+              <p className="result-status">
+                <span className={resultPillClass(result.data.status)}>{resultStatusLabel(result.data.status)}</span>
+                {result.data.final_price_minor != null && (
+                  <strong className="result-price">{formatPrice(result.data.final_price_minor)}</strong>
+                )}
+              </p>
+              <dl className="kv">
+                {result.data.winner && (
+                  <>
+                    <dt>Winner</dt>
+                    <dd>{result.data.winner.display_name ?? "Winner"}</dd>
+                  </>
+                )}
+                {result.data.checkout_expires_at && (
+                  <>
+                    <dt>Checkout until</dt>
+                    <dd>{formatDateTime(result.data.checkout_expires_at)}</dd>
+                  </>
+                )}
+              </dl>
+              {result.data.status === "PAYMENT_EXPIRED" && (
+                <p className="muted small">
+                  The winner&apos;s checkout window expired, so this sale did not complete.
+                </p>
               )}
-              {result.data.winner && (
-                <>
-                  <dt>Winner</dt>
-                  <dd>{result.data.winner.display_name ?? "Winner"}</dd>
-                </>
-              )}
-              {result.data.checkout_expires_at && (
-                <>
-                  <dt>Checkout until</dt>
-                  <dd>{formatDateTime(result.data.checkout_expires_at)}</dd>
-                </>
-              )}
-            </dl>
+            </>
           )}
           {!result.loading && !result.error && result.data
             && result.data.status === "AWAITING_CHECKOUT"
@@ -357,12 +424,12 @@ export default function AuctionPanel({
             && result.data.winner_id === currentUserId && (
             <button
               type="button"
-              className="btn btn-primary btn-block"
+              className="btn btn-bid"
               onClick={() => {
                 window.location.hash = `#/checkout/auction/${result.data.id}`;
               }}
             >
-              Complete Purchase
+              Complete Purchase · {result.data.final_price_minor != null ? formatPrice(result.data.final_price_minor) : ""}
             </button>
           )}
         </div>

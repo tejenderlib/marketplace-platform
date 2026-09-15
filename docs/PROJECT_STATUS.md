@@ -20,12 +20,12 @@ Snapshot as of the Phase 9 documentation task (2026-09-15).
   seller order views.
 - **Phase 4 Admin** — admin read dashboards (users, listings, orders,
   auctions, payments, reviews, reports, support, moderation audit) and
-  moderation actions (approve/reject/remove/restore listings,
+  moderation actions (remove/restore listings post-publication,
   suspend/reactivate users, remove reviews, resolve reports, manage
   tickets).
 - **Phase 5 Storefront** — buyer-facing SPA: listing discovery, detail,
   favorites, fixed-price checkout, payment, orders; seller listing
-  management with submit-for-review workflow.
+  management with direct-publish workflow (listing goes live immediately).
 - **Phase 6 Marketplace/User Interaction** — offers (make/accept/reject/
   withdraw/counter-offer checkout), auction browsing/bidding/auction
   checkout, user profiles, seller profiles (committed:
@@ -75,8 +75,11 @@ image validation, multi-instance infrastructure.
   family revocation, session cap of 10 ACTIVE tokens), bcrypt,
   register/login rate limits, suspension, email-verification gate
   (PENDING_VERIFICATION accounts cannot use marketplace endpoints).
-- Catalog: lifecycle-managed listings with submit→review→approve
-  publishing, images (storage_key references), favorites.
+- Catalog: lifecycle-managed listings with direct publish
+  (DRAFT→ACTIVE via POST /submit, validated) and post-publication
+  admin moderation (ACTIVE↔REMOVED), images (storage_key references),
+  favorites. PENDING_REVIEW/REJECTED are legacy states kept for
+  historical rows only.
 - Trading: offers with expiry; authoritative auctions (DRAFT→SCHEDULED→
   LIVE→ENDED/SETTLED) with row-locked idempotent bidding; settlement
   honors reserve price; winner checkout window.

@@ -65,13 +65,21 @@ class ListingSaleType(str, enum.Enum):
 
 
 class ListingStatus(str, enum.Enum):
+    """Lifecycle statuses.
+
+    Current seller flow: DRAFT -> ACTIVE (-> RESERVED -> SOLD, EXPIRED,
+    ARCHIVED); post-publication moderation: ACTIVE <-> REMOVED.
+    PENDING_REVIEW / REJECTED are legacy pre-approval states retained for
+    historical rows; the normal V1 seller flow never creates them.
+    """
+
     DRAFT = "DRAFT"
-    PENDING_REVIEW = "PENDING_REVIEW"
+    PENDING_REVIEW = "PENDING_REVIEW"  # legacy (pre-approval); do not create
     ACTIVE = "ACTIVE"
     RESERVED = "RESERVED"
     SOLD = "SOLD"
     EXPIRED = "EXPIRED"
-    REJECTED = "REJECTED"
+    REJECTED = "REJECTED"  # legacy (pre-approval); do not create
     REMOVED = "REMOVED"
     ARCHIVED = "ARCHIVED"
 

@@ -2,8 +2,9 @@
 
     docker compose run --rm -e PYTHONPATH=/app api python tests/seller_workflow_smoke.py
 
-Covers /listings/mine, seller lifecycle map, submit flow (incl. auction
-config gate), image PATCH/reorder/primary rules, and ownership. Cleans up.
+Covers /listings/mine, seller lifecycle map, publish flow DRAFT -> ACTIVE
+(incl. auction config gate, auth, duplicate safety, public visibility),
+image PATCH/reorder/primary rules, and ownership. Cleans up.
 """
 
 from __future__ import annotations
@@ -134,25 +135,28 @@ def main():
     status, body = call("PATCH", f"/catalog/listings/{lid}", {"status": "ARCHIVED"}, token=seller_tok)
     check("ACTIVE->ARCHIVED allowed", status == 200 and body["status"] == "ARCHIVED", (status, body))
 
-    # 3. submit flow (fresh listing)
+    # 3. publish flow (fresh listing): DRAFT -> ACTIVE immediately
     lid2 = make_listing(seller_tok, title="WF Submit")
     status, _ = call("POST", f"/catalog/listings/{lid2}/submit", token=other_tok)
-    check("submit non-owner 403", status == 403, status)
+    check("publish non-owner 403", status == 403, status)
+    status, _ = call("POST", f"/catalog/listings/{lid2}/submit")
+    check("publish unauth rejected", status in (401, 403), status)
     status, sub = call("POST", f"/catalog/listings/{lid2}/submit", token=seller_tok)
-    check("submit DRAFT->PENDING_REVIEW", status == 200 and sub["status"] == "PENDING_REVIEW", (status, sub))
+    check("publish DRAFT->ACTIVE", status == 200 and sub["status"] == "ACTIVE", (status, sub))
+    check("publish sets published_at", sub.get("published_at") is not None, sub.get("published_at"))
+    status, pub = call("GET", f"/catalog/listings/{lid2}")
+    check("published listing publicly visible", status == 200 and pub["status"] == "ACTIVE", (status, pub))
     status, _ = call("POST", f"/catalog/listings/{lid2}/submit", token=seller_tok)
-    check("repeat submit 409", status == 409, status)
-    # incomplete listing (blank city bypasses API? city min_length=2 enforced at create;
-    # simulate incompleteness via direct SQL nulling is impossible (NOT NULL) -> instead
-    # verify missing auction config path below). Restore path: REJECTED->DRAFT
+    check("duplicate publish 409", status == 409, status)
+    # legacy REJECTED rows can still return to DRAFT (historical compatibility)
     db3 = S2()
     db3.execute(text("UPDATE listings SET status = 'REJECTED' WHERE id = :i"), {"i": lid2})
     db3.commit()
     db3.close()
     status, body = call("PATCH", f"/catalog/listings/{lid2}", {"status": "DRAFT"}, token=seller_tok)
-    check("REJECTED->DRAFT resubmit path", status == 200 and body["status"] == "DRAFT", (status, body))
+    check("REJECTED->DRAFT legacy path", status == 200 and body["status"] == "DRAFT", (status, body))
     status, sub2 = call("POST", f"/catalog/listings/{lid2}/submit", token=seller_tok)
-    check("resubmit after reject 200", status == 200 and sub2["status"] == "PENDING_REVIEW", (status, sub2))
+    check("republish after legacy reject 200 ACTIVE", status == 200 and sub2["status"] == "ACTIVE", (status, sub2))
 
     # 4. auction boundary: AUCTION listing without auction row cannot submit
     alid = make_listing(seller_tok, sale_type="AUCTION", title="WF Auction", fixed_price_minor=None)
@@ -168,7 +172,7 @@ def main():
                        token=seller_tok)
     check("auction row created", status == 201, (status, auc))
     status, sub3 = call("POST", f"/catalog/listings/{alid}/submit", token=seller_tok)
-    check("auction submit with config 200", status == 200 and sub3["status"] == "PENDING_REVIEW", (status, sub3))
+    check("auction publish with config 200 ACTIVE", status == 200 and sub3["status"] == "ACTIVE", (status, sub3))
     status, _ = call("POST", "/auctions",
                      {"listing_id": alid, "starting_bid_minor": 1000,
                       "minimum_increment_minor": 100, "currency": "INR",

@@ -5,6 +5,9 @@ import { formatPrice } from "../data/listings.js";
 import { createAddress, fixedPriceCheckout, listAddresses } from "../api/checkout.js";
 import { fetchListing } from "../api/catalog.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import AddressPicker from "../components/checkout/AddressPicker.jsx";
+import CheckoutSteps from "../components/checkout/CheckoutSteps.jsx";
+import CheckoutSummary from "../components/checkout/CheckoutSummary.jsx";
 
 const STEPS = ["Details", "Address", "Review"];
 
@@ -128,17 +131,11 @@ export default function CheckoutPage({ listingId }) {
   const selectedAddress = addresses.items.find((a) => a.id === addressId);
 
   return (
-    <div className="content">
+    <div className="content co-page">
       <a className="back-link" href={listing ? `#/listing/${listing.id}` : "#/"}>
         ← Back
       </a>
-      <ol className="steps" aria-label="Checkout progress">
-        {STEPS.map((label, i) => (
-          <li key={label} className={i === 0 ? "step current" : "step"}>
-            <span>{i + 1}. {label}</span>
-          </li>
-        ))}
-      </ol>
+      <CheckoutSteps steps={STEPS} current={0} />
       <h1>Checkout</h1>
       {listingState.loading && <p className="muted" role="status">Loading listing…</p>}
       {listingState.error && (
@@ -148,93 +145,64 @@ export default function CheckoutPage({ listingId }) {
         </div>
       )}
       {listing && (
-        <form onSubmit={submit}>
-          <div className="detail-grid">
-            <div className="detail-card">
-              <h2>Item</h2>
-              <dl className="kv">
-                <dt>Title</dt><dd>{listing.title}</dd>
-                <dt>Price</dt><dd>{formatPrice(listing.fixed_price_minor)}</dd>
-                <dt>Shipping</dt><dd>{formatPrice(shipping)} (server-calculated)</dd>
-                <dt>Total</dt><dd><strong>{formatPrice(total)}</strong></dd>
-                <dt>Seller</dt><dd>{listing.seller?.display_name ?? "Seller"}</dd>
-                <dt>Location</dt><dd>{[listing.city, listing.region].filter(Boolean).join(", ")}</dd>
-              </dl>
-              <label>
-                <span>Contact email</span>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              </label>
-            </div>
-            <div className="detail-card">
-              <h2>Delivery address</h2>
-              {addresses.loading && <p className="muted">Loading addresses…</p>}
-              {addresses.error && <p className="form-error">{addresses.error}</p>}
-              {!addresses.loading && addresses.items.length === 0 && !showNewAddress && (
-                <p className="muted">No saved addresses yet — add one below.</p>
-              )}
-              {addresses.items.map((addr) => (
-                <label key={addr.id} className="address-option">
-                  <input
-                    type="radio"
-                    name="address"
-                    checked={addressId === addr.id}
-                    onChange={() => setAddressId(addr.id)}
-                  />
-                  <span>
-                    <strong>{addr.recipient_name}</strong> — {addr.line1}, {addr.city}
-                    {addr.is_default ? " · default" : ""}
-                  </span>
-                </label>
-              ))}
-              <button type="button" className="btn btn-ghost" onClick={() => setShowNewAddress((v) => !v)}>
-                {showNewAddress ? "Hide new address" : "Add new address"}
-              </button>
-            </div>
-          </div>
-
-          {showNewAddress && (
-            <div className="detail-card">
-              <h2>New address (India only)</h2>
-              <div className="form-grid">
-                <label><span>Recipient *</span>
-                  <input value={newAddress.recipient_name} onChange={(e) => setNewAddress({ ...newAddress, recipient_name: e.target.value })} required={showNewAddress} />
-                </label>
-                <label><span>Address line 1 *</span>
-                  <input value={newAddress.line1} onChange={(e) => setNewAddress({ ...newAddress, line1: e.target.value })} required={showNewAddress} />
-                </label>
-                <label><span>City *</span>
-                  <input value={newAddress.city} onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })} required={showNewAddress} />
-                </label>
-                <label><span>State</span>
-                  <input value={newAddress.region} onChange={(e) => setNewAddress({ ...newAddress, region: e.target.value })} />
-                </label>
-                <label><span>PIN code</span>
-                  <input value={newAddress.postal_code} onChange={(e) => setNewAddress({ ...newAddress, postal_code: e.target.value })} inputMode="numeric" />
-                </label>
-                <label><span>Phone</span>
-                  <input value={newAddress.phone} onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })} type="tel" />
-                </label>
-                <label><span>Country</span>
-                  <select value={newAddress.country} onChange={(e) => setNewAddress({ ...newAddress, country: e.target.value })}>
-                    <option value="IN">India (IN)</option>
-                  </select>
-                </label>
+        <form onSubmit={submit} className="co-layout">
+          <div className="co-main">
+            <section className="co-card" aria-labelledby="co-item-heading">
+              <h2 id="co-item-heading">Item</h2>
+              <div className="co-item">
+                <span className="co-thumb" aria-hidden="true">
+                  {listing.title.charAt(0).toUpperCase()}
+                </span>
+                <div className="co-item-text">
+                  <p className="co-item-title">{listing.title}</p>
+                  <p className="muted small">
+                    {listing.seller?.display_name ?? "Seller"}
+                    {" · "}
+                    {[listing.city, listing.region].filter(Boolean).join(", ")}
+                  </p>
+                </div>
               </div>
-              <button type="button" className="btn btn-ghost" disabled={busy} onClick={addAddress}>
-                Save address
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button type="submit" className="btn btn-primary btn-block" disabled={busy || !addressId}>
-            {busy ? "Placing order…" : `Place order · ${formatPrice(total)}`}
-          </button>
-          <p className="muted small">Price and total come from the server. Double-clicks create one order.</p>
+              <label className="field">
+                <span>
+                  Contact email <span className="req" aria-hidden="true">*</span>
+                </span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+              </label>
+            </section>
+            <AddressPicker
+              addresses={addresses}
+              addressId={addressId}
+              onSelect={setAddressId}
+              showNew={showNewAddress}
+              onToggleNew={() => setShowNewAddress((v) => !v)}
+              newAddress={newAddress}
+              onNewChange={(key, value) => setNewAddress((prev) => ({ ...prev, [key]: value }))}
+              busy={busy}
+              onSave={addAddress}
+            />
+          </div>
+          <CheckoutSummary
+            eyebrow="Fixed price"
+            title={listing.title}
+            titleHref={`#/listing/${listing.id}`}
+            rows={[
+              { label: "Price", value: formatPrice(listing.fixed_price_minor) },
+              { label: "Shipping", value: `${formatPrice(shipping)} (server-calculated)` },
+            ]}
+            totalLabel="Total"
+            totalMinor={total}
+            error={error}
+            busy={busy}
+            submitDisabled={!addressId}
+            submitLabel={`Place order · ${formatPrice(total)}`}
+            note="Price and total come from the server. Double-clicks create one order."
+          />
         </form>
       )}
     </div>

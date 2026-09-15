@@ -155,6 +155,58 @@ export function formatDateTime(value) {
   });
 }
 
+/** Shared status/priority → pill mapping (display only; values untouched). */
+export function statusPillClass(value) {
+  switch (value) {
+    case "ACTIVE":
+    case "LIVE":
+    case "PAID":
+    case "DELIVERED":
+    case "SETTLED":
+    case "PAYMENT_COMPLETED":
+    case "RESOLVED":
+      return "pill pill-active";
+    case "PENDING_REVIEW":
+    case "PENDING_PAYMENT":
+    case "AWAITING_CHECKOUT":
+    case "OPEN":
+    case "IN_PROGRESS":
+    case "UNDER_REVIEW":
+    case "SCHEDULED":
+    case "PENDING_VERIFICATION":
+      return "pill pill-ending";
+    case "PROCESSING":
+    case "READY_FOR_DELIVERY":
+    case "SHIPPED":
+    case "RESERVED":
+    case "SOLD":
+    case "ORDER_CREATED":
+    case "WAITING_FOR_CUSTOMER":
+      return "pill pill-sold";
+    case "PAYMENT_FAILED":
+    case "PAYMENT_EXPIRED":
+    case "CANCELLED":
+    case "REJECTED":
+    case "REMOVED":
+    case "EXPIRED":
+    case "SUSPENDED":
+    case "HIGH":
+    case "URGENT":
+      return "pill pill-cancelled";
+    default:
+      return "pill";
+  }
+}
+
+/** Status pill with readable text (never color-only). */
+export function StatusPill({ value }) {
+  return (
+    <span className={statusPillClass(value)} title={`Status: ${value ?? "—"}`}>
+      {value ?? "—"}
+    </span>
+  );
+}
+
 /** Map admin-action failures to UI handling: session / denied / conflict / error. */
 export function describeActionError(error) {
   if (error instanceof ApiError) {

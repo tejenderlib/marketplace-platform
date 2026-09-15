@@ -1,4 +1,9 @@
-"""Read-only admin endpoints (all REQUIRE require_admin_user; no mutations)."""
+"""Admin endpoints (all REQUIRE require_admin_user).
+
+Listing moderation is post-publication: ACTIVE -> REMOVED -> ACTIVE.
+Pre-approval actions (approve/reject) were removed; LISTING_APPROVED /
+LISTING_REJECTED audit/notification enum values remain for historical rows.
+"""
 
 from __future__ import annotations
 
@@ -703,36 +708,6 @@ def _moderate_listing(
             link=f"#/listing/{listing.id}",
         )
     return _audit_out(action)
-
-
-@router.post("/listings/{listing_id}/approve", response_model=ModerationActionOut)
-def approve_listing(
-    listing_id: uuid.UUID,
-    payload: ModerationRequest,
-    admin: User = Depends(require_admin_user),
-    db: Session = Depends(get_db_session),
-) -> ModerationActionOut:
-    """PENDING_REVIEW -> ACTIVE."""
-
-    return _moderate_listing(
-        db, admin, listing_id, ListingStatus.PENDING_REVIEW, ListingStatus.ACTIVE,
-        ModerationActionType.LISTING_APPROVED, payload.reason, payload.metadata,
-    )
-
-
-@router.post("/listings/{listing_id}/reject", response_model=ModerationActionOut)
-def reject_listing(
-    listing_id: uuid.UUID,
-    payload: ModerationRequest,
-    admin: User = Depends(require_admin_user),
-    db: Session = Depends(get_db_session),
-) -> ModerationActionOut:
-    """PENDING_REVIEW -> REJECTED."""
-
-    return _moderate_listing(
-        db, admin, listing_id, ListingStatus.PENDING_REVIEW, ListingStatus.REJECTED,
-        ModerationActionType.LISTING_REJECTED, payload.reason, payload.metadata,
-    )
 
 
 @router.post("/listings/{listing_id}/remove", response_model=ModerationActionOut)

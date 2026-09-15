@@ -5,6 +5,10 @@ import { formatPrice } from "../data/listings.js";
 import { createAddress, listAddresses, myOrders, offerCheckout } from "../api/checkout.js";
 import { getOffer } from "../api/offers.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import AddressPicker from "../components/checkout/AddressPicker.jsx";
+import CheckoutSteps from "../components/checkout/CheckoutSteps.jsx";
+import CheckoutSummary from "../components/checkout/CheckoutSummary.jsx";
+import StatusPill from "../components/checkout/StatusPill.jsx";
 
 const STEPS = ["Details", "Address", "Review"];
 
@@ -148,23 +152,12 @@ export default function OfferCheckoutPage({ offerId }) {
   const total = subtotal + shipping;
 
   return (
-    <div className="content">
+    <div className="content co-page">
       <a className="back-link" href="#/offers">
         ← Back
       </a>
-      <ol className="steps" aria-label="Checkout progress">
-        {STEPS.map((label, i) => (
-          <li key={label} className={i === 0 ? "step current" : "step"}>
-            <span>{i + 1}. {label}</span>
-          </li>
-        ))}
-      </ol>
-      <h1>
-        Accepted Offer Checkout{" "}
-        <span className="pill" title="Only ACCEPTED offers can be checked out">
-          Offer
-        </span>
-      </h1>
+      <CheckoutSteps steps={STEPS} current={0} />
+      <h1>Accepted Offer Checkout</h1>
       {offerState.loading && <p className="muted" role="status">Loading offer…</p>}
       {offerState.error && (
         <div className="empty-state" role="alert">
@@ -173,22 +166,27 @@ export default function OfferCheckoutPage({ offerId }) {
         </div>
       )}
       {offer && (
-        <form onSubmit={submit}>
-          <div className="detail-grid">
-            <div className="detail-card">
-              <h2>Accepted offer</h2>
-              <dl className="kv">
-                <dt>Item</dt>
-                <dd>
-                  <a href={`#/listing/${offer.listing_id}`}>{offer.listing?.title ?? "Listing"}</a>
-                </dd>
-                <dt>Negotiated price</dt>
-                <dd>{formatPrice(offer.amount_minor)}</dd>
-                <dt>Shipping</dt><dd>{formatPrice(shipping)} (server-calculated)</dd>
-                <dt>Total</dt><dd><strong>{formatPrice(total)}</strong></dd>
-                <dt>Seller</dt><dd>{offer.seller?.display_name ?? "Seller"}</dd>
-                <dt>Status</dt><dd><span className="pill">{offer.status}</span></dd>
-              </dl>
+        <form onSubmit={submit} className="co-layout">
+          <div className="co-main">
+            <section className="co-card" aria-labelledby="co-offer-heading">
+              <h2 id="co-offer-heading">Accepted offer</h2>
+              <div className="co-item">
+                <span className="co-thumb" aria-hidden="true">
+                  {(offer.listing?.title ?? "L").charAt(0).toUpperCase()}
+                </span>
+                <div className="co-item-text">
+                  <p className="co-item-title">
+                    <a href={`#/listing/${offer.listing_id}`}>{offer.listing?.title ?? "Listing"}</a>
+                  </p>
+                  <p className="muted small">
+                    Negotiated with {offer.seller?.display_name ?? "Seller"}
+                  </p>
+                </div>
+              </div>
+              <p className="co-offer-price">
+                <span>Negotiated price</span>
+                <strong>{formatPrice(offer.amount_minor)}</strong>
+              </p>
               {existingOrderId && (
                 <p className="form-ok" role="status">
                   An order already exists for this offer.{" "}
@@ -200,82 +198,50 @@ export default function OfferCheckoutPage({ offerId }) {
                   Only ACCEPTED offers can be checked out (this offer is {offer.status}).
                 </p>
               )}
-              <label>
-                <span>Contact email</span>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!canCheckout} required />
+              <label className="field">
+                <span>
+                  Contact email <span className="req" aria-hidden="true">*</span>
+                </span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={!canCheckout}
+                  required
+                  autoComplete="email"
+                />
               </label>
-            </div>
-            <div className="detail-card">
-              <h2>Delivery address</h2>
-              {addresses.loading && <p className="muted">Loading addresses…</p>}
-              {addresses.error && <p className="form-error">{addresses.error}</p>}
-              {!addresses.loading && addresses.items.length === 0 && !showNewAddress && (
-                <p className="muted">No saved addresses yet — add one below.</p>
-              )}
-              {addresses.items.map((addr) => (
-                <label key={addr.id} className="address-option">
-                  <input
-                    type="radio"
-                    name="address"
-                    checked={addressId === addr.id}
-                    onChange={() => setAddressId(addr.id)}
-                    disabled={!canCheckout}
-                  />
-                  <span>
-                    <strong>{addr.recipient_name}</strong> — {addr.line1}, {addr.city}
-                    {addr.is_default ? " · default" : ""}
-                  </span>
-                </label>
-              ))}
-              <button type="button" className="btn btn-ghost" onClick={() => setShowNewAddress((v) => !v)}>
-                {showNewAddress ? "Hide new address" : "Add new address"}
-              </button>
-            </div>
+            </section>
+            <AddressPicker
+              addresses={addresses}
+              addressId={addressId}
+              onSelect={setAddressId}
+              showNew={showNewAddress}
+              onToggleNew={() => setShowNewAddress((v) => !v)}
+              newAddress={newAddress}
+              onNewChange={(key, value) => setNewAddress((prev) => ({ ...prev, [key]: value }))}
+              busy={busy}
+              lockSelection={!canCheckout}
+              onSave={addAddress}
+            />
           </div>
-
-          {showNewAddress && (
-            <div className="detail-card">
-              <h2>New address (India only)</h2>
-              <div className="form-grid">
-                <label><span>Recipient *</span>
-                  <input value={newAddress.recipient_name} onChange={(e) => setNewAddress({ ...newAddress, recipient_name: e.target.value })} required={showNewAddress} />
-                </label>
-                <label><span>Address line 1 *</span>
-                  <input value={newAddress.line1} onChange={(e) => setNewAddress({ ...newAddress, line1: e.target.value })} required={showNewAddress} />
-                </label>
-                <label><span>City *</span>
-                  <input value={newAddress.city} onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })} required={showNewAddress} />
-                </label>
-                <label><span>State</span>
-                  <input value={newAddress.region} onChange={(e) => setNewAddress({ ...newAddress, region: e.target.value })} />
-                </label>
-                <label><span>PIN code</span>
-                  <input value={newAddress.postal_code} onChange={(e) => setNewAddress({ ...newAddress, postal_code: e.target.value })} inputMode="numeric" />
-                </label>
-                <label><span>Phone</span>
-                  <input value={newAddress.phone} onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })} type="tel" />
-                </label>
-                <label><span>Country</span>
-                  <select value={newAddress.country} onChange={(e) => setNewAddress({ ...newAddress, country: e.target.value })}>
-                    <option value="IN">India (IN)</option>
-                  </select>
-                </label>
-              </div>
-              <button type="button" className="btn btn-ghost" disabled={busy} onClick={addAddress}>
-                Save address
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button type="submit" className="btn btn-primary btn-block" disabled={busy || !addressId || !canCheckout}>
-            {busy ? "Placing order…" : `Place order · ${formatPrice(total)}`}
-          </button>
-          <p className="muted small">Negotiated price and total come from the server. Double-clicks create one order.</p>
+          <CheckoutSummary
+            eyebrow="Accepted offer"
+            title={offer.listing?.title ?? "Listing"}
+            titleHref={`#/listing/${offer.listing_id}`}
+            sourcePill={<StatusPill status={offer.status} />}
+            rows={[
+              { label: "Negotiated price", value: formatPrice(offer.amount_minor), strong: true },
+              { label: "Shipping", value: `${formatPrice(shipping)} (server-calculated)` },
+            ]}
+            totalLabel="Total"
+            totalMinor={total}
+            error={error}
+            busy={busy}
+            submitDisabled={!addressId || !canCheckout}
+            submitLabel={`Place order · ${formatPrice(total)}`}
+            note="Negotiated price and total come from the server. Double-clicks create one order."
+          />
         </form>
       )}
     </div>

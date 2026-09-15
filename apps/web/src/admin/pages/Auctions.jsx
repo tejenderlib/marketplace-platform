@@ -8,6 +8,7 @@ import {
   Loading,
   Pagination,
   formatDateTime,
+  StatusPill,
   useAdminData,
 } from "../components/ui.jsx";
 
@@ -46,7 +47,7 @@ export function AuctionsPage() {
               {data.map((auction) => (
                 <tr key={auction.id}>
                   <td><a href={`#/admin/auctions/${auction.id}`}>{auction.listing_title}</a></td>
-                  <td><span className="pill">{auction.status}</span></td>
+                  <td><StatusPill value={auction.status} /></td>
                   <td>{auction.current_bid_minor != null ? formatPrice(auction.current_bid_minor) : "—"}</td>
                   <td>{auction.bid_count}</td>
                   <td>{formatDateTime(auction.ends_at)}</td>
@@ -78,7 +79,7 @@ export function AuctionDetailPage({ id }) {
         <div className="detail-card">
           <h2>Auction</h2>
           <dl className="kv">
-            <dt>Status</dt><dd><span className="pill">{data.status}</span></dd>
+            <dt>Status</dt><dd><StatusPill value={data.status} /></dd>
             <dt>Starting bid</dt><dd>{formatPrice(data.starting_bid_minor)}</dd>
             <dt>Min. increment</dt><dd>{formatPrice(data.minimum_increment_minor)}</dd>
             <dt>Current bid</dt>

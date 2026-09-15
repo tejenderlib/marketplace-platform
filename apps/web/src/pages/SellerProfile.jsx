@@ -110,7 +110,7 @@ export default function SellerProfilePage({ userId }) {
         {listings.items.length > 0 && (
           <div className="listing-grid">
             {listings.items.map((item) => (
-              <ListingCard key={item.id} listing={item} isFavorite={false} onToggleFavorite={() => {}} />
+              <ListingCard key={item.id} listing={item} isFavorite={false} onToggleFavorite={() => {}} interactive={false} />
             ))}
           </div>
         )}

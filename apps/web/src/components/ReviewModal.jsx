@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ApiError } from "../api/client.js";
 import { formatPrice } from "../data/listings.js";
@@ -10,6 +10,14 @@ export default function ReviewModal({ order, counterPartyName, onClose, onSubmit
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    function onKey(event) {
+      if (event.key === "Escape" && !busy) onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [busy, onClose]);
 
   async function submit(e) {
     e.preventDefault();
@@ -60,7 +68,11 @@ export default function ReviewModal({ order, counterPartyName, onClose, onSubmit
             maxLength={2000}
             disabled={busy}
             placeholder="How was this purchase experience?"
+            aria-describedby="review-comment-count"
           />
+          <span id="review-comment-count" className="muted small">
+            {comment.length}/2000
+          </span>
         </label>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
