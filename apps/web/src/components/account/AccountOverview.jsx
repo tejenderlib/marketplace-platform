@@ -5,11 +5,13 @@ import { formatPrice } from "../../data/listings.js";
 import { myOrders } from "../../api/checkout.js";
 import { myOffers } from "../../api/offers.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
+import Button from "../ui/Button.jsx";
+import Pill from "../ui/Pill.jsx";
+import { LoadingState } from "../ui/States.jsx";
 
 /**
- * Account overview dashboard. All metrics are real totals/lists from
- * existing endpoints; areas with full pages link out instead of
- * duplicating them.
+ * Account overview: next actions + recent activity. All figures are real
+ * totals/lists from existing endpoints; full pages link out.
  */
 export default function AccountOverview({ favoriteCount }) {
   const { authFetch } = useAuth();
@@ -51,13 +53,13 @@ export default function AccountOverview({ favoriteCount }) {
   ];
 
   return (
-    <>
+    <div className="ce-stack">
       <section aria-labelledby="acct-stats-heading">
-        <h2 id="acct-stats-heading" className="visually-hidden">Account summary</h2>
-        <ul className="acct-stats">
+        <h2 id="acct-stats-heading" className="ce-visually-hidden">Account summary</h2>
+        <ul className="ce-stat-grid">
           {stats.map((stat) => (
             <li key={stat.label}>
-              <a className="acct-stat" href={stat.href}>
+              <a href={stat.href}>
                 <strong>{stat.value}</strong>
                 <span>{stat.label}</span>
               </a>
@@ -66,61 +68,61 @@ export default function AccountOverview({ favoriteCount }) {
         </ul>
       </section>
 
-      <section className="acct-section" aria-labelledby="acct-actions-heading">
-        <h2 id="acct-actions-heading">Quick actions</h2>
-        <div className="card-actions">
-          <a className="btn btn-sell" href="#/sell">Sell an item</a>
-          <a className="btn btn-ghost" href="#/profile/listings">My listings</a>
-          <a className="btn btn-ghost" href="#/profile/orders">My orders</a>
-          <a className="btn btn-ghost" href="#/profile/messages">Messages</a>
+      <section aria-labelledby="acct-actions-heading">
+        <h2 id="acct-actions-heading" className="ce-h3">Quick actions</h2>
+        <div className="ce-cluster">
+          <Button variant="primary" size="sm" href="#/sell">Sell an item</Button>
+          <Button variant="ghost" size="sm" href="#/profile/listings">My listings</Button>
+          <Button variant="ghost" size="sm" href="#/profile/orders">My orders</Button>
+          <Button variant="ghost" size="sm" href="#/profile/messages">Messages</Button>
         </div>
       </section>
 
-      <section className="acct-section" aria-labelledby="acct-recent-orders">
-        <div className="section-head">
-          <h2 id="acct-recent-orders">Recent orders</h2>
-          <a className="btn btn-ghost btn-sm" href="#/profile/orders">View all</a>
+      <section aria-labelledby="acct-recent-orders">
+        <div className="ce-section-head">
+          <h2 id="acct-recent-orders" className="ce-h3">Recent orders</h2>
+          <Button variant="ghost" size="sm" href="#/profile/orders">View all</Button>
         </div>
-        {orders.loading && <p className="muted" role="status">Loading orders…</p>}
+        {orders.loading && <LoadingState label="Loading orders…" />}
         {!orders.loading && orders.items.length === 0 && (
-          <p className="muted">No orders yet.</p>
+          <p className="ce-small ce-muted">No orders yet.</p>
         )}
         {orders.items.length > 0 && (
-          <ul className="acct-rows">
+          <ul className="ce-rows">
             {orders.items.map((order) => (
               <li key={order.id}>
-                <a href={`#/orders/${order.id}`}>{order.listing_title_snapshot}</a>{" "}
-                <strong>{formatPrice(order.total_minor)}</strong>
+                <a href={`#/orders/${order.id}`}>{order.listing_title_snapshot}</a>
+                <strong className="ce-tnum">{formatPrice(order.total_minor)}</strong>
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      <section className="acct-section" aria-labelledby="acct-recent-offers">
-        <div className="section-head">
-          <h2 id="acct-recent-offers">Recent offers</h2>
-          <a className="btn btn-ghost btn-sm" href="#/profile/offers">View all</a>
+      <section aria-labelledby="acct-recent-offers">
+        <div className="ce-section-head">
+          <h2 id="acct-recent-offers" className="ce-h3">Recent offers</h2>
+          <Button variant="ghost" size="sm" href="#/profile/offers">View all</Button>
         </div>
-        {offers.loading && <p className="muted" role="status">Loading offers…</p>}
+        {offers.loading && <LoadingState label="Loading offers…" />}
         {!offers.loading && offers.items.length === 0 && (
-          <p className="muted">No offers yet.</p>
+          <p className="ce-small ce-muted">No offers yet.</p>
         )}
         {offers.items.length > 0 && (
-          <ul className="acct-rows">
+          <ul className="ce-rows">
             {offers.items.map((offer) => (
               <li key={offer.id}>
-                <strong>{formatPrice(offer.amount_minor)}</strong>{" "}
-                <span className={`status-pill status-${offer.status}`}>{offer.status}</span>{" "}
-                <span className="muted small">{offer.listing?.title}</span>
+                <strong className="ce-tnum">{formatPrice(offer.amount_minor)}</strong>
+                <Pill status={offer.status}>{offer.status}</Pill>
+                <span className="ce-small ce-muted">{offer.listing?.title}</span>
               </li>
             ))}
           </ul>
         )}
-        <p className="muted small">
+        <p className="ce-small ce-muted">
           Selling? <a href="#/seller/offers">View offers received</a>.
         </p>
       </section>
-    </>
+    </div>
   );
 }

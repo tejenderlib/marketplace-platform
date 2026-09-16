@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ApiError } from "../api/client.js";
 import { clearToken, fetchMe, getToken, login } from "../auth/auth.js";
 import { ErrorState, Loading } from "./components/ui.jsx";
+import Button from "../components/ui/Button.jsx";
 import { AuctionDetailPage, AuctionsPage } from "./pages/Auctions.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import { ListingDetailPage, ListingsPage } from "./pages/Listings.jsx";
@@ -52,22 +53,26 @@ function LoginForm({ onDone, initialError }) {
 
   return (
     <div className="admin-login-wrap">
-      <form className="admin-login" onSubmit={submit}>
-        <h1>Admin sign in</h1>
-        <p className="muted">Restricted area. ADMIN role required — enforced by the backend.</p>
-        {error && <p className="form-error" role="alert">{error}</p>}
-        <label>
-          <span>Email</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" />
-        </label>
-        <label>
-          <span>Password</span>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
-        </label>
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? "Signing in…" : "Sign in"}
-        </button>
-        <a className="back-link" href="#/">← Back to marketplace</a>
+      <form className="ce-card" onSubmit={submit} style={{ maxWidth: "24rem", margin: "4rem auto" }}>
+        <h1 className="ce-h2">Admin sign in</h1>
+        <p className="ce-small ce-muted">Restricted area. ADMIN role required — enforced by the backend.</p>
+        {error && <p className="ce-error" role="alert">{error}</p>}
+        <div className="ce-form">
+          <label className="ce-field">
+            <span>Email</span>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" />
+          </label>
+          <label className="ce-field">
+            <span>Password</span>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+          </label>
+        </div>
+        <div className="ce-cluster">
+          <Button variant="primary" type="submit" disabled={busy}>
+            {busy ? "Signing in…" : "Sign in"}
+          </Button>
+          <Button variant="ghost" size="sm" href="#/">← Back to marketplace</Button>
+        </div>
       </form>
     </div>
   );
@@ -102,7 +107,7 @@ export default function AdminApp({ route }) {
 
   if (auth.loading) {
     return (
-      <div className="admin-shell">
+      <div className="admin-shell ce-scope">
         <Loading label="Checking admin session…" />
       </div>
     );
@@ -110,7 +115,7 @@ export default function AdminApp({ route }) {
 
   if (!auth.user) {
     return (
-      <div className="admin-shell">
+      <div className="admin-shell ce-scope">
         <LoginForm onDone={checkAuth} initialError={auth.error} />
       </div>
     );
@@ -118,17 +123,18 @@ export default function AdminApp({ route }) {
 
   if (!auth.user.roles?.includes("ADMIN")) {
     return (
-      <div className="admin-shell">
-        <ErrorState message={`Access denied for ${auth.user.email}. ADMIN role required (backend-enforced).`} />
-        <div className="admin-center">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => { clearToken(); checkAuth(); }}
-          >
-            Sign out
-          </button>{" "}
-          <a className="btn btn-primary" href="#/">Back to marketplace</a>
+      <div className="admin-shell ce-scope">
+        <div className="ce-container ce-stack" style={{ paddingBlock: "4rem" }}>
+          <ErrorState message={`Access denied for ${auth.user.email}. ADMIN role required (backend-enforced).`} />
+          <div className="ce-cluster">
+            <Button
+              variant="ghost"
+              onClick={() => { clearToken(); checkAuth(); }}
+            >
+              Sign out
+            </Button>
+            <Button variant="secondary" href="#/">Back to marketplace</Button>
+          </div>
         </div>
       </div>
     );
@@ -138,26 +144,26 @@ export default function AdminApp({ route }) {
   const activeId = route.id ?? null;
 
   return (
-    <div className="admin-shell">
+    <div className="admin-shell ce-scope">
       <header className="admin-topbar">
         <button
           type="button"
-          className="menu-toggle"
+          className="ce-menu-btn"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((v) => !v)}
         >
-          ☰
+          <span aria-hidden="true" className="ce-menu-bars" />
         </button>
         <a className="admin-brand" href="#/admin">Marketplace · Admin</a>
         <span className="admin-user">{auth.user.email}</span>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => { clearToken(); checkAuth(); }}
         >
           Sign out
-        </button>
+        </Button>
       </header>
 
       <div className="admin-body">

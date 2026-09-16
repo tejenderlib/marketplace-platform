@@ -1,0 +1,49 @@
+/* CE feedback states: empty, error, loading, notice. */
+
+.ce-empty {
+  text-align: center;
+  padding: var(--ce-12) var(--ce-6);
+  display: grid;
+  gap: var(--ce-3);
+  justify-items: center;
+}
+
+.ce-empty h3 {
+  font-family: var(--ce-font-display);
+  font-size: var(--ce-h3);
+  color: var(--ce-ink);
+  margin: 0;
+}
+
+.ce-state {
+  padding: var(--ce-8) var(--ce-6);
+  text-align: center;
+  color: var(--ce-muted);
+}
+
+.ce-state--error {
+  color: var(--ce-danger);
+}
+
+.ce-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--ce-3);
+  padding: var(--ce-3) var(--ce-4);
+  border-radius: var(--ce-r-control);
+  border: 1px solid var(--ce-info-border);
+  background: var(--ce-info-bg);
+  color: var(--ce-info);
+}
+
+.ce-notice--error {
+  border-color: var(--ce-danger-border);
+  background: var(--ce-danger-bg);
+  color: var(--ce-danger);
+}
+
+.ce-notice--warning {
+  border-color: var(--ce-warning-border);
+  background: var(--ce-warning-bg);
+  color: var(--ce-warning);
+}

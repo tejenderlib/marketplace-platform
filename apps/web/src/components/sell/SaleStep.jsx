@@ -1,14 +1,14 @@
 function Field({ label, required, error, hint, children, htmlFor }) {
   return (
-    <label className="field" htmlFor={htmlFor}>
+    <label className="ce-field" htmlFor={htmlFor}>
       <span>
-        {label} {required && <span className="req" aria-hidden="true">*</span>}
-        {!required && <span className="opt"> (optional)</span>}
+        {label} {required && <span aria-hidden="true">*</span>}
+        {!required && <span className="ce-hint"> (optional)</span>}
       </span>
       {children}
-      {hint && <span className="form-help">{hint}</span>}
+      {hint && <span className="ce-hint">{hint}</span>}
       {error && (
-        <span className="form-error" role="alert">
+        <span className="ce-error" role="alert">
           {error}
         </span>
       )}
@@ -19,19 +19,19 @@ function Field({ label, required, error, hint, children, htmlFor }) {
 /** Step 2: sale-type choice + price or auction configuration. */
 export default function SaleStep({ form, errors, lockedSaleType, onChange }) {
   return (
-    <div className="sell-stepbody">
-      <fieldset className="sell-saletype">
-        <legend>
-          Sale type <span className="req" aria-hidden="true">*</span>
+    <div className="ce-form">
+      <fieldset className="ce-field" style={{ border: "none", padding: 0, margin: 0 }}>
+        <legend className="ce-h3">
+          Sale type <span aria-hidden="true">*</span>
         </legend>
-        <div className="sell-saletype-options" role="radiogroup" aria-label="Sale type">
+        <div className="ce-radio-cards" role="radiogroup" aria-label="Sale type">
           {[
             ["FIXED_PRICE", "Fixed price", "Sell at a set price. Buyers can also send offers."],
             ["AUCTION", "Auction", "Buyers bid against a starting price until the end time."],
           ].map(([value, label, blurb]) => (
             <label
               key={value}
-              className={form.sale_type === value ? "saletype-card is-active" : "saletype-card"}
+              className={form.sale_type === value ? "ce-radio-card is-active" : "ce-radio-card"}
             >
               <input
                 type="radio"
@@ -43,13 +43,13 @@ export default function SaleStep({ form, errors, lockedSaleType, onChange }) {
               />
               <span>
                 <strong>{label}</strong>
-                <span className="form-help">{blurb}</span>
+                <span className="ce-hint">{blurb}</span>
               </span>
             </label>
           ))}
         </div>
         {lockedSaleType && (
-          <p className="form-help">Sale type is fixed after the draft is created.</p>
+          <p className="ce-hint">Sale type is fixed after the draft is created.</p>
         )}
       </fieldset>
 
@@ -67,7 +67,7 @@ export default function SaleStep({ form, errors, lockedSaleType, onChange }) {
               placeholder="e.g. 450000"
             />
           </Field>
-          <label className="sell-check">
+          <label className="ce-check">
             <input
               type="checkbox"
               checked={form.offers_enabled}
@@ -75,11 +75,11 @@ export default function SaleStep({ form, errors, lockedSaleType, onChange }) {
             />
             <span>Allow buyers to send offers on this listing</span>
           </label>
-          <p className="form-help">Prices are in INR. The backend rejects anything else.</p>
+          <p className="ce-hint">Prices are in INR. The backend rejects anything else.</p>
         </>
       ) : (
         <>
-          <div className="sell-row">
+          <div className="ce-form-row">
             <Field label="Starting bid (₹)" required error={errors.starting_rupees} htmlFor="sell-start">
               <input
                 id="sell-start"
@@ -122,7 +122,7 @@ export default function SaleStep({ form, errors, lockedSaleType, onChange }) {
               placeholder="Leave blank for no reserve"
             />
           </Field>
-          <div className="sell-row">
+          <div className="ce-form-row">
             <Field label="Starts at" required error={errors.starts_at} htmlFor="sell-starts">
               <input
                 id="sell-starts"
@@ -140,7 +140,7 @@ export default function SaleStep({ form, errors, lockedSaleType, onChange }) {
               />
             </Field>
           </div>
-          <p className="form-help">
+          <p className="ce-hint">
             The auction is created as a draft row alongside your listing; it goes
             live immediately when you publish.
           </p>

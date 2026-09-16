@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 
 import { createReport } from "../api/reports.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import Button from "./ui/Button.jsx";
+import Modal from "./ui/Modal.jsx";
 
 const REASONS = [
   "SPAM",
@@ -27,16 +29,9 @@ export default function ReportModal({ targetType, targetId, onClose, onReported 
   const [details, setDetails] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const firstFieldRef = useRef(null);
 
   const label = TARGET_LABELS[targetType] ?? "item";
-
-  useEffect(() => {
-    function onKey(event) {
-      if (event.key === "Escape" && !busy) onClose?.();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [busy, onClose]);
 
   async function submit(e) {
     e.preventDefault();
@@ -63,25 +58,26 @@ export default function ReportModal({ targetType, targetId, onClose, onReported 
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Report this item">
-      <form className="modal" onSubmit={submit}>
+    <Modal label="Report this item" onClose={onClose} dismissable={!busy} initialFocusRef={firstFieldRef}>
+      <form onSubmit={submit}>
         <h2>Report {label}</h2>
-        <p className="muted">Reports go to moderation and are reviewed in order.</p>
+        <p className="ce-small ce-muted">Reports go to moderation and are reviewed in order.</p>
         {error && (
-          <p className="form-error" role="alert">
+          <p className="ce-error" role="alert">
             {error}
           </p>
         )}
-        <label>
-          <span>Reason</span>
-          <select value={reason} onChange={(e) => setReason(e.target.value)} disabled={busy}>
+        <div className="ce-form">
+          <label className="ce-field">
+            <span>Reason</span>
+            <select ref={firstFieldRef} value={reason} onChange={(e) => setReason(e.target.value)} disabled={busy}>
             <option value="">Select a reason…</option>
             {REASONS.map((item) => (
               <option key={item} value={item}>{item.replaceAll("_", " ")}</option>
             ))}
           </select>
         </label>
-        <label>
+        <label className="ce-field">
           <span>Details (optional)</span>
           <textarea
             value={details}
@@ -92,19 +88,20 @@ export default function ReportModal({ targetType, targetId, onClose, onReported 
             placeholder="Anything that helps moderation understand the issue."
             aria-describedby="report-details-count"
           />
-          <span id="report-details-count" className="muted small">
+          <span id="report-details-count" className="ce-hint">
             {details.length}/2000
           </span>
         </label>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
+        </div>
+        <div className="ce-modal-actions">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
+          </Button>
+          <Button variant="primary" type="submit" disabled={busy}>
             {busy ? "Submitting…" : "Submit report"}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

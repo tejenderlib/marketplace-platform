@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "../api/client.js";
 import { normalizeListing } from "../api/catalog.js";
-import ListingCard from "../components/ListingCard.jsx";
+import ListingCard from "../components/marketplace/ListingCard.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
+import Button from "../components/ui/Button.jsx";
+import { EmptyState, ErrorState, LoadingState } from "../components/ui/States.jsx";
 
 export default function FavoritesPage({ favorites, onToggleFavorite }) {
   const { isAuthenticated, authFetch, redirectToLogin } = useAuth();
@@ -32,31 +34,26 @@ export default function FavoritesPage({ favorites, onToggleFavorite }) {
   }, [isAuthenticated, load, redirectToLogin]);
 
   if (!isAuthenticated) {
-    return (
-      <div className="content">
-        <p className="muted">Redirecting to login…</p>
-      </div>
-    );
+    return <p className="ce-small ce-muted">Redirecting to login…</p>;
   }
 
   return (
-    <div className="content">
-      <h1>My Favorites</h1>
-      {state.loading && <p className="muted" role="status">Loading favorites…</p>}
-      {state.error && (
-        <div className="empty-state" role="alert">
-          <p>{state.error}</p>
-          <button type="button" className="btn btn-primary" onClick={load}>Retry</button>
-        </div>
-      )}
+    <div className="ce-stack">
+      <div>
+        <p className="ce-micro ce-muted">Saved for later</p>
+        <h1 className="ce-h1">My Favorites</h1>
+      </div>
+      {state.loading && <LoadingState label="Loading favorites…" />}
+      {state.error && <ErrorState message={state.error} onRetry={load} />}
       {!state.loading && !state.error && state.items.length === 0 && (
-        <div className="empty-state">
-          <p>No favorites yet. Tap ♥ on any listing to save it here.</p>
-          <a className="btn btn-primary" href="#/">Browse listings</a>
-        </div>
+        <EmptyState
+          title="No favorites yet"
+          hint="Tap ♥ on any listing to save it here."
+          action={<Button variant="secondary" size="sm" href="#/">Browse listings</Button>}
+        />
       )}
       {!state.error && state.items.length > 0 && (
-        <div className="listing-grid">
+        <div className="ce-grid">
           {state.items.map((listing) => (
             <ListingCard
               key={listing.id}

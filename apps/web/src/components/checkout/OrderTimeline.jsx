@@ -24,9 +24,9 @@ export default function OrderTimeline({ order }) {
   const currentIndex = TIMELINE_STAGES.indexOf(order.status);
 
   return (
-    <section className="co-card" aria-labelledby="co-timeline-heading">
+    <section className="ce-card" aria-labelledby="co-timeline-heading">
       <h2 id="co-timeline-heading">Status timeline</h2>
-      <ol className="co-timeline">
+      <ol className="ce-timeline">
         {TIMELINE_STAGES.map((stage, index) => {
           const done = reached.has(stage) || (currentIndex >= 0 && index < currentIndex);
           const current = stage === order.status;
@@ -34,20 +34,23 @@ export default function OrderTimeline({ order }) {
           return (
             <li
               key={stage}
-              className={current ? "is-current" : done ? "is-done" : "is-todo"}
+              data-state={current ? "current" : done ? "done" : "todo"}
               aria-current={current ? "step" : undefined}
             >
-              <span className="co-dot" aria-hidden="true" />
-              <span className="co-stage">
-                <strong>{statusLabel(stage)}</strong>
-                <span className="muted small">{date ?? "Pending"}</span>
-              </span>
+              <span className="ce-timeline-dot" aria-hidden="true" />
+              <div>
+                <p>
+                  {statusLabel(stage)}
+                  {current ? " — current" : ""}
+                </p>
+                <p className="ce-small ce-muted">{date ?? "Pending"}</p>
+              </div>
             </li>
           );
         })}
       </ol>
       {terminal && (
-        <p className="co-branch" role="status">
+        <p className="ce-small" role="status">
           This order was <strong>{statusLabel(terminal).toLowerCase()}</strong>
           {(() => {
             const hit = (order.history ?? []).find((h) => h.to_status === terminal);

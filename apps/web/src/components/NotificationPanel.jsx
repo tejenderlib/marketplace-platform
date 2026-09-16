@@ -3,28 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../api/client.js";
 import { listNotifications, markAllRead, markRead } from "../api/notifications.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import Button from "./ui/Button.jsx";
 
-const LIMIT = 20;
-
-function formatWhen(value) {
-  const then = new Date(value);
-  const now = new Date();
-  const diffSeconds = Math.round((now - then) / 1000);
-  if (Number.isNaN(diffSeconds)) return "";
-  if (diffSeconds < 60) return "just now";
-  if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
-  if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
-  return then.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
-}
-
-function linkTarget(link) {
-  if (!link) return null;
-  if (link.startsWith("#/")) return link;
-  if (link.startsWith("/")) return `#${link}`;
-  return null;
-}
-
-/** Dropdown listing the newest notifications with mark-read and view-all. */
+/** Dropdown listing the newest notifications with mark-read and view-all. Logic unchanged. */
 export default function NotificationPanel({ onClose, onCountChange, initialError }) {
   const { authFetch } = useAuth();
   const [state, setState] = useState({ loading: true, error: initialError, items: [], total: 0 });
@@ -33,7 +14,7 @@ export default function NotificationPanel({ onClose, onCountChange, initialError
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const data = await listNotifications(authFetch, { limit: LIMIT, offset: 0 });
+      const data = await listNotifications(authFetch, { limit: 20, offset: 0 });
       setState({ loading: false, error: null, items: data.items, total: data.total });
     } catch (err) {
       setState({
@@ -47,6 +28,14 @@ export default function NotificationPanel({ onClose, onCountChange, initialError
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
+    function onUpdated() {
+      load();
+    }
+    window.addEventListener("notifications-updated", onUpdated);
+    return () => window.removeEventListener("notifications-updated", onUpdated);
   }, [load]);
 
   async function handleRead(id) {
@@ -78,58 +67,77 @@ export default function NotificationPanel({ onClose, onCountChange, initialError
     }
   }
 
+  function linkTarget(link) {
+    if (!link) return null;
+    if (link.startsWith("#/")) return link;
+    if (link.startsWith("/")) return `#${link}`;
+    return null;
+  }
+
+  function formatWhen(value) {
+    const then = new Date(value);
+    const now = new Date();
+    const diffSeconds = Math.round((now - then) / 1000);
+    if (Number.isNaN(diffSeconds)) return "";
+    if (diffSeconds < 60) return "just now";
+    if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+    if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
+    return then.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+  }
+
   return (
-    <div className="notification-panel" role="dialog" aria-label="Notifications">
-      <div className="notification-panel-head">
+    <div className="ce-notif-panel" role="dialog" aria-label="Notifications">
+      <div className="ce-notif-head">
         <strong>Notifications</strong>
-        <span className="muted small">
+        <span className="ce-small ce-muted">
           {state.items.some((item) => !item.is_read) ? (
-            <button type="button" className="link-like" onClick={handleMarkAll} disabled={!!busyId}>
+            <Button variant="ghost" size="sm" onClick={handleMarkAll} disabled={!!busyId}>
               Mark all read
-            </button>
+            </Button>
           ) : (
             "All caught up"
           )}
         </span>
       </div>
 
-      {state.loading && <p className="muted small" role="status">Loading…</p>}
+      {state.loading && <p className="ce-small ce-muted" role="status">Loading…</p>}
       {!state.loading && state.error && (
-        <p className="notification-error small" role="alert">{state.error}</p>
+        <p className="ce-error ce-small" role="alert">{state.error}</p>
       )}
       {!state.loading && !state.error && state.items.length === 0 && (
-        <p className="muted small">No notifications yet.</p>
+        <p className="ce-small ce-muted">No notifications yet.</p>
       )}
       {state.items.length > 0 && (
-        <ul className="notification-list">
+        <ul className="ce-notif-list">
           {state.items.map((item) => {
             const href = linkTarget(item.link);
-            const inner = (
-              <button
-                type="button"
-                className={item.is_read ? "notification-item is-read" : "notification-item"}
-                onClick={() => {
-                  if (!item.is_read) handleRead(item.id);
-                  if (href) {
-                    window.location.hash = href;
-                    onClose?.();
-                  }
-                }}
-                disabled={busyId === item.id}
-              >
-                <span className="notification-title">{item.type.replaceAll("_", " ")}</span>
-                <span className="notification-body">{item.title}</span>
-                {item.body && <span className="notification-text">{item.body}</span>}
-                <span className="muted small">{formatWhen(item.created_at)}</span>
-              </button>
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  className={item.is_read ? "ce-notif-item is-read" : "ce-notif-item"}
+                  onClick={() => {
+                    if (!item.is_read) handleRead(item.id);
+                    if (href) {
+                      window.location.hash = href;
+                      onClose?.();
+                    }
+                  }}
+                  disabled={busyId === item.id}
+                >
+                  <span className="ce-micro ce-muted">{item.type.replaceAll("_", " ")}</span>
+                  <span className="ce-notif-title">{item.title}</span>
+                  {item.body && <span className="ce-small ce-muted">{item.body}</span>}
+                  <span className="ce-small ce-muted">{formatWhen(item.created_at)}</span>
+                </button>
+              </li>
             );
-            return <li key={item.id}>{inner}</li>;
           })}
         </ul>
       )}
 
-      <div className="notification-panel-foot">
-        <a href="#/notifications" onClick={onClose}>View all</a>
+      <div className="ce-notif-foot">
+        <Button variant="ghost" size="sm" href="#/notifications" onClick={onClose}>View all</Button>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 # Architecture
 
-## Phase 1 baseline
+## Phase 1 baseline (Phases 2–10 implemented; see PROJECT_STATUS.md)
 
 The application is a modular monolith. A React/Vite single-page application communicates with a FastAPI REST API. PostgreSQL is the authoritative persistent store. Docker Compose runs the three development services: `web`, `api`, and `postgres`.
 

@@ -1,6 +1,7 @@
 # Project Status
 
-Snapshot as of the Phase 9 documentation task (2026-09-15).
+Snapshot at `HEAD` (`4062345 feat: complete marketplace phases 7-10`,
+branch `main`, clean tree, in sync with `origin/main`).
 
 ## Completed phases
 
@@ -8,12 +9,12 @@ Snapshot as of the Phase 9 documentation task (2026-09-15).
 - **Phase 1 Foundation** — React/Vite web app, FastAPI API, PostgreSQL,
   Docker Compose stack, env configuration, Alembic baseline, health
   endpoint, local admin provisioning script.
-- **Phase 2 Database** — full domain schema via 17 Alembic migrations:
-  identity (users/roles/profiles/refresh tokens), catalog (categories,
-  listings, images, favorites), trading (offers, auctions, bids,
-  auction results), orders (addresses, orders, shipping snapshots,
-  shipments, status history, payments), notifications, messaging,
-  reports, reviews, support, moderation actions.
+- **Phase 2 Database** — full domain schema via 17 Alembic migrations
+  (`0001`–`0017`): identity (users/roles/profiles/refresh tokens),
+  catalog (categories, listings, images, favorites), trading (offers,
+  auctions, bids, auction results), orders (addresses, orders, shipping
+  snapshots, shipments, status history, payments), notifications,
+  messaging, reports, reviews, support, moderation actions.
 - **Phase 3 Backend APIs** — all domain REST endpoints: auth (with 8.1
   hardening), catalog, offers, auctions/bids, addresses, checkout
   (fixed-price/offer/auction), orders + dummy payments + ship/deliver,
@@ -28,19 +29,13 @@ Snapshot as of the Phase 9 documentation task (2026-09-15).
   management with direct-publish workflow (listing goes live immediately).
 - **Phase 6 Marketplace/User Interaction** — offers (make/accept/reject/
   withdraw/counter-offer checkout), auction browsing/bidding/auction
-  checkout, user profiles, seller profiles (committed:
-  `5a03cdd feat: complete phase 6 user interaction`).
+  checkout, user profiles, seller profiles.
 - **Phase 7 Communication, Trust & Support** — ratings/reviews on
   DELIVERED orders (one per order, admin soft-removal), in-app
-  notifications with WebSocket live push, buyer-seller messaging,
-  content/user reports, support tickets with message threads and admin
-  handling.
-
-## Current phase
-
-**Phase 8 Security & Reliability — completed** (working tree, uncommitted
-on top of Phase 6 commit `5a03cdd`; Phases 7–9 are also uncommitted).
-
+  notifications with WebSocket live push (first-frame auth handshake),
+  buyer-seller messaging, content/user reports, support tickets with
+  message threads and admin handling. Committed at `HEAD`.
+- **Phase 8 Security & Reliability — completed and committed**
 - 8.1 Auth hardening (refresh-token rotation with family revocation,
   auth rate limiting)
 - 8.2 Order/checkout expiry (deadline stamping, lazy cancellation,
@@ -55,7 +50,17 @@ on top of Phase 6 commit `5a03cdd`; Phases 7–9 are also uncommitted).
   auto-close scheduler, sibling-offer rejection on accept, text input
   ceilings, per-user bid cap, duplicate-message suppression, image
   metadata validation (MIME/size/dimensions).
-- Phase 9 (documentation) is complete in the working tree.
+- **Phase 9 Documentation** — completed and committed (centralized under
+  `docs/`: DECISIONS.md, FLOW.md, PROJECT_STATUS.md, AI_CHANGELOG.md,
+  PHASES.md, plus post-publication lifecycle record).
+- **Phase 10 UI/UX Polish — completed and committed** (frontend-only, no
+  migration beyond `0017`): sell wizard (`Sell.jsx`, `sell/*` steps +
+  `shared.js`), account workspace (`account/*`), category browse
+  (`BrowseCategories.jsx`, `CategoryMegaMenu.jsx`, `CategoryGroup.jsx`,
+  `categoryDirectory.js`), checkout components (`checkout/*`),
+  chat/support components, admin UI polish (`admin/*`, `ui.jsx`,
+  `ModerationDialog.jsx`), `App.jsx`/header/listing components rewrite,
+  `styles.css` expansion.
 
 Deferred beyond V1 (documented in DECISIONS.md §16): localStorage token
 storage (HttpOnly cookies), real email delivery, real PSP, byte-level
@@ -82,13 +87,14 @@ image validation, multi-instance infrastructure.
   historical rows only.
 - Trading: offers with expiry; authoritative auctions (DRAFT→SCHEDULED→
   LIVE→ENDED/SETTLED) with row-locked idempotent bidding; settlement
-  honors reserve price; winner checkout window.
+  honors reserve price; winner checkout window; 30 s in-process
+  auto-close scheduler (single-instance).
 - Orders: three sources (FIXED_PRICE/ACCEPTED_OFFER/AUCTION_WIN),
   server-side pricing only, DUMMY payment provider abstraction,
   checkout-window expiry, buyer cancel, ship/deliver fulfillment,
   immutable history + address snapshots.
-- Trust & comms: reviews, notifications (+WS push), messaging,
-  reports, support tickets; admin moderation with audit trail.
+- Trust & comms: reviews, notifications (+WS first-frame-auth push),
+  messaging, reports, support tickets; admin moderation with audit trail.
 
 ## Test status
 
@@ -103,7 +109,7 @@ tests/<suite>.py`):**
   auction_reserve (8.3), **phase8_final** (8.4–8.17: payment gating,
   session cap, verification gate, hidden listings, money bounds,
   auto-close, sibling offers, input limits, bid cap, duplicate
-  messages, image validation) — all suites report `FAILURES: none`.
+  messages, image validation) — 18 suites report `FAILURES: none`.
 
 **Frontend:** no automated frontend test suite exists (no test runner
 in `apps/web/package.json`); `npm run build` passes and verification is
@@ -137,30 +143,17 @@ manual through the running SPA.
   cap (200/auction, 429 beyond) and the seller self-bid block are the
   practical safeguards.
 
-## Uncommitted work (confirmed from git status)
+## Git state
 
-The working tree contains **uncommitted Phase 7/8/9 work on top of the
-last commit (`5a03cdd`, Phase 6)**:
-
-- Modified: auth/orders/checkout/auctions/offers/admin/profile endpoints,
-  models and schemas for orders + admin, identity models, core config
-  (rate limits), main.py router registration, web SPA pages/styles,
-  compose.yaml, .env.example.
-- New (untracked): notifications/messaging/reviews/reports/support/ws
-  backend modules and their routers, migrations 0013–0017
-  (reviews, notifications, messaging/reports/support,
-  refresh rotation, order checkout expiry), rate_limit core module,
-  smoke suites (reviews, notifications, phase7_remaining,
-  auth_hardening, order_expiry, auction_reserve), the Phase 9
-  documentation files, and a stray `apps/web/dist2/` build output
-  directory (not part of app source).
-- Nothing has been committed or pushed for Phases 7–9.
+Tree is clean at `4062345` (`git status --short` empty, branch
+`main` in sync with `origin/main`). Migrations `0013`–`0017`
+(reviews, notifications, messaging/reports/support, refresh rotation,
+order checkout expiry), all 18 smoke suites, and the Phase 9
+documentation files are committed. No stray `dist2/` directory remains.
 
 ## Remaining roadmap
 
-- Phase 9: documentation — completed (centralized under `docs/`:
-  DECISIONS.md, FLOW.md, PROJECT_STATUS.md, AI_CHANGELOG.md, PHASES.md).
-- Phase 10: UI/UX polish of the storefront and admin SPA.
+- Phases 9–10: documentation and UI/UX polish — completed.
 - Later (post-V1, per architecture doc): real object storage (with
   byte-level image validation), real payment provider, email delivery,
   multi-instance deployment concerns (Redis pub/sub, shared rate

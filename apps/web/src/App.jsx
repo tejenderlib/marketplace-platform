@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
-import Footer from "./components/Footer.jsx";
-import Header from "./components/Header.jsx";
-import Hero from "./components/Hero.jsx";
-import ListingDetail from "./components/ListingDetail.jsx";
-import ListingGrid from "./components/ListingGrid.jsx";
+import Footer from "./components/marketplace/SiteFooter.jsx";
+import SiteHeader from "./components/marketplace/SiteHeader.jsx";
+import HomePage from "./components/marketplace/HomePage.jsx";
+import LandingPage from "./components/landing/LandingPage.jsx";
+import ListingDetailView from "./components/marketplace/ListingDetailView.jsx";
+import DiscoveryGrid from "./components/marketplace/DiscoveryGrid.jsx";
 import NotFound from "./components/NotFound.jsx";
 import AdminApp from "./admin/AdminApp.jsx";
 import { normalizeListing } from "./api/catalog.js";
@@ -14,6 +15,7 @@ import { useFavorites } from "./hooks/useFavorites.js";
 import LoginPage from "./pages/Login.jsx";
 import RegisterPage from "./pages/Register.jsx";
 import SellPage from "./pages/Sell.jsx";
+import UiPreview from "./components/UiPreview.jsx";
 import AccountWorkspace from "./components/account/AccountWorkspace.jsx";
 import SellerProfilePage from "./pages/SellerProfile.jsx";
 import CheckoutPage from "./pages/Checkout.jsx";
@@ -27,7 +29,8 @@ import ReportsPage from "./pages/Reports.jsx";
 const PAGE_SIZE = 12;
 
 function parseRoute() {
-  const adminMatch = window.location.hash.match(/^#\/admin(?:\/(\w+)(?:\/([\w-]+))?)?\/?$/);
+  // Private Step-1 sign-off artifact; excluded from site navigation.
+  if (window.location.hash.startsWith("#/ui-preview")) return { page: "ui-preview" };  const adminMatch = window.location.hash.match(/^#\/admin(?:\/(\w+)(?:\/([\w-]+))?)?\/?$/);
   if (adminMatch) {
     return {
       page: "admin",
@@ -69,6 +72,11 @@ function parseRoute() {
   if (sellerProfile) return { page: "seller", id: sellerProfile[1] };
   if (window.location.hash.startsWith("#/offers")) {
     return { page: "profile", section: "offers", offersTab: "sent" };
+  }
+  // Phase 1 landing owns "#/". The existing discovery experience is
+  // preserved under "#/buy" so Phase 3 can bind it without rework.
+  if (window.location.hash.startsWith("#/buy")) {
+    return { page: "buy" };
   }
   const checkoutFixed = window.location.hash.match(/^#\/checkout\/fixed\/([\w-]+)/);
   if (checkoutFixed) return { page: "checkout", id: checkoutFixed[1] };
@@ -115,13 +123,15 @@ export default function App() {
 
   const categoriesState = useCategories();
   const listingsState = useListings(
-    route.page === "home" || route.page === "detail"
+    route.page === "home" ||
+      route.page === "buy" ||
+      route.page === "detail"
       ? {
-          q: route.page === "home" ? debouncedQuery : "",
-          category_id: route.page === "home" && activeCategory !== "All" ? activeCategory : "",
-          sale_type: route.page === "home" ? saleType : "",
+          q: route.page === "buy" ? debouncedQuery : "",
+          category_id: route.page === "buy" && activeCategory !== "All" ? activeCategory : "",
+          sale_type: route.page === "buy" ? saleType : "",
           limit: PAGE_SIZE,
-          offset: route.page === "home" ? offset : 0,
+          offset: route.page === "buy" ? offset : 0,
         }
       : null,
   );
@@ -186,16 +196,24 @@ export default function App() {
     window.scrollTo(0, 0);
   }
 
+  function goBuy() {
+    if (window.location.hash !== "#/buy") {
+      window.location.hash = "#/buy";
+    }
+    setOffset(0);
+    window.scrollTo(0, 0);
+  }
+
   function showAuctions() {
     setActiveCategory("All");
     setSaleType("AUCTION");
-    goHome();
+    goBuy();
   }
 
   function buyEquipment() {
     setActiveCategory("All");
     setSaleType("FIXED_PRICE");
-    goHome();
+    goBuy();
   }
 
   // NOTE: every hook must run on every render, before any early return
@@ -215,6 +233,14 @@ export default function App() {
         .slice(0, 4),
     [similarState.items, route.id],
   );
+
+  if (route.page === "ui-preview") {
+    return (
+      <div className="app">
+        <UiPreview />
+      </div>
+    );
+  }
 
   if (route.page === "admin") {
     return (
@@ -259,7 +285,11 @@ export default function App() {
   if (route.page === "seller") {
     return (
       <div className="app">
-        <SellerProfilePage userId={route.id} />
+        <SellerProfilePage
+          userId={route.id}
+          favorites={favorites}
+          onToggleFavorite={toggleFavorite}
+        />
       </div>
     );
   }
@@ -333,9 +363,20 @@ export default function App() {
     );
   }
 
+  // Phase 1: "#/" is the monochrome BUY/SELL landing foundation.
+  // Existing discovery + detail stay reachable under "#/buy" / listing
+  // routes so later phases bind without rework.
+  if (route.page === "home") {
+    return (
+      <div className="app">
+        <LandingPage />
+      </div>
+    );
+  }
+
   return (
-    <div className="app">
-      <Header
+    <div className="app ce-scope">
+      <SiteHeader
         user={user}
         onLogin={() => {
           window.location.hash = "#/login";
@@ -396,13 +437,13 @@ export default function App() {
                     ? "This listing does not exist."
                     : "Could not load this listing. Please retry."}
                 </p>
-                <a className="btn btn-primary" href="#/">
+                <a className="btn btn-primary" href="#/buy">
                   Back to listings
                 </a>
               </div>
             </div>
           ) : detail ? (
-            <ListingDetail
+            <ListingDetailView
               key={detail.id}
               listing={detail}
               isFavorite={favorites.has(detail.id)}
@@ -419,33 +460,39 @@ export default function App() {
             <NotFound />
           )
         ) : (
-          <>
-            <Hero query={query} onQueryChange={setQuery} />
-            <div className="content">
-              <ListingGrid
-                items={items}
-                total={listingsState.total}
-                loading={listingsState.loading}
-                error={listingsState.error}
-                onRetry={listingsState.reload}
-                favorites={favorites}
-                onToggleFavorite={toggleFavorite}
-                onClearFilters={clearFilters}
-                onClearCategory={() => selectCategory("All")}
-                onClearSearch={clearSearch}
-                query={debouncedQuery}
-                activeCategoryName={activeCategoryName}
-                saleType={saleType}
-                onSelectSaleType={selectSaleType}
-                page={page}
-                pages={pages}
-                onPage={(next) => {
-                  setOffset((next - 1) * PAGE_SIZE);
-                  document.getElementById("listings")?.scrollIntoView();
-                }}
-              />
-            </div>
-          </>
+          <div className="ce-container">
+            <HomePage
+              items={items}
+              total={listingsState.total}
+              loading={listingsState.loading}
+              error={listingsState.error}
+              onRetry={listingsState.reload}
+              favorites={favorites}
+              onToggleFavorite={toggleFavorite}
+              onClearFilters={clearFilters}
+              onClearCategory={() => selectCategory("All")}
+              onClearSearch={clearSearch}
+              query={query}
+              debouncedQuery={debouncedQuery}
+              activeCategoryName={activeCategoryName}
+              saleType={saleType}
+              onSelectSaleType={selectSaleType}
+              page={page}
+              pages={pages}
+              onPage={(next) => {
+                setOffset((next - 1) * PAGE_SIZE);
+                document.getElementById("listings")?.scrollIntoView();
+              }}
+              categories={categoriesState.data}
+              activeCategory={activeCategory}
+              onSelectCategory={selectCategory}
+              categoriesLoading={categoriesState.loading}
+              categoriesError={categoriesState.error}
+              onCategoriesRetry={categoriesState.reload}
+              onViewAllAuctions={showAuctions}
+              onQueryChange={setQuery}
+            />
+          </div>
         )}
       </main>
 

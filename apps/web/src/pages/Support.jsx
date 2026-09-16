@@ -12,6 +12,9 @@ import SupportCategoryGrid from "../components/support/SupportCategoryGrid.jsx";
 import SupportHeader from "../components/support/SupportHeader.jsx";
 import TicketCard from "../components/support/TicketCard.jsx";
 import { shortRef } from "../components/support/supportContext.js";
+import Button from "../components/ui/Button.jsx";
+import Skeleton from "../components/ui/Skeleton.jsx";
+import { EmptyState, ErrorState, LoadingState } from "../components/ui/States.jsx";
 
 const LIMIT = 20;
 const DESCRIPTION_MAX = 5000;
@@ -93,11 +96,7 @@ export default function SupportPage({ detailBase = "/support" }) {
   }, [isAuthenticated, authFetch, category]);
 
   if (!isAuthenticated) {
-    return (
-      <div className="content">
-        <p className="muted">Redirecting to login…</p>
-      </div>
-    );
+    return <p className="ce-small ce-muted">Redirecting to login…</p>;
   }
 
   const selected = objects.items.find((item) => item.id === selectedId) ?? null;
@@ -144,11 +143,12 @@ export default function SupportPage({ detailBase = "/support" }) {
   const messageMax = Math.max(100, DESCRIPTION_MAX - headerPreview.length - 2);
 
   return (
-    <div className="content">
+    <div className="ce-scope">
+      <div className="ce-container ce-stack">
       <SupportHeader />
 
       <section aria-labelledby="support-category-heading">
-        <h2 id="support-category-heading">What do you need help with?</h2>
+        <h2 id="support-category-heading" className="ce-h2">What do you need help with?</h2>
         <SupportCategoryGrid
           selected={category}
           onSelect={(next) => chooseCategory(category === next ? null : next)}
@@ -156,22 +156,22 @@ export default function SupportPage({ detailBase = "/support" }) {
       </section>
 
       {createdNote && (
-        <p className="form-ok" role="status">{createdNote}</p>
+        <p className="ce-ok" role="status">{createdNote}</p>
       )}
 
       {category && meta && (
-        <section className="detail-card" aria-labelledby="support-flow-heading">
-          <div className="support-form-head">
-            <h2 id="support-flow-heading">{meta.title}</h2>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => chooseCategory(null)}>
+        <section className="ce-card" aria-labelledby="support-flow-heading">
+          <div className="ce-section-head">
+            <h2 id="support-flow-heading" className="ce-h2">{meta.title}</h2>
+            <Button variant="ghost" size="sm" onClick={() => chooseCategory(null)}>
               ← All topics
-            </button>
+            </Button>
           </div>
 
           {category === "account" ? (
-            <form onSubmit={handleCreate} className="stack-form">
-              {formError && <p className="form-error" role="alert">{formError}</p>}
-              <label className="field" htmlFor="support-account-message">
+            <form onSubmit={handleCreate} className="ce-form">
+              {formError && <p className="ce-error" role="alert">{formError}</p>}
+              <label className="ce-field" htmlFor="support-account-message">
                 <span>Describe the problem <span aria-hidden="true">*</span></span>
                 <textarea
                   id="support-account-message"
@@ -182,25 +182,26 @@ export default function SupportPage({ detailBase = "/support" }) {
                   maxLength={messageMax}
                   required
                 />
-                <span className="muted small" aria-live="polite">{message.length}/{messageMax} characters</span>
+                <span className="ce-hint" aria-live="polite">{message.length}/{messageMax} characters</span>
               </label>
-              <button type="submit" className="btn btn-primary" disabled={creating || !message.trim()}>
-                {creating ? "Submitting…" : "Submit support request"}
-              </button>
+              <div>
+                <Button variant="primary" type="submit" disabled={creating || !message.trim()}>
+                  {creating ? "Submitting…" : "Submit support request"}
+                </Button>
+              </div>
             </form>
           ) : objects.loading ? (
-            <p className="muted" role="status">Loading your records…</p>
+            <LoadingState label="Loading your records…" />
           ) : objects.error ? (
-            <div className="empty-state" role="alert">
-              <p>{objects.error}</p>
-            </div>
+            <ErrorState message={objects.error} />
           ) : objects.items.length === 0 ? (
-            <div className="empty-state">
-              <p>No {meta.title.toLowerCase()} found on your account yet.</p>
-            </div>
+            <EmptyState
+              title={`No ${meta.title.toLowerCase()} found`}
+              hint="Nothing on your account matches this topic yet."
+            />
           ) : (
-            <form onSubmit={handleCreate}>
-              {formError && <p className="form-error" role="alert">{formError}</p>}
+            <form onSubmit={handleCreate} className="ce-form">
+              {formError && <p className="ce-error" role="alert">{formError}</p>}
               <ContextObjectPicker
                 items={objects.items}
                 selectedId={selectedId}
@@ -209,20 +210,22 @@ export default function SupportPage({ detailBase = "/support" }) {
               />
               {selected && (
                 <>
-                  <div className="support-selected">
-                    <div>
-                      <strong>{selected.title}</strong>
-                      <span className="muted small">{selected.ref}{selected.meta ? ` · ${selected.meta}` : ""}</span>
+                  <div className="ce-card ce-card--pad-sm">
+                    <div className="ce-cluster">
+                      <div>
+                        <strong>{selected.title}</strong>
+                        <span className="ce-small ce-muted">{selected.ref}{selected.meta ? ` · ${selected.meta}` : ""}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedId(null)}
+                      >
+                        Change
+                      </Button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setSelectedId(null)}
-                    >
-                      Change
-                    </button>
                   </div>
-                  <label className="field" htmlFor="support-context-message">
+                  <label className="ce-field" htmlFor="support-context-message">
                     <span>Describe the problem <span aria-hidden="true">*</span></span>
                     <textarea
                       id="support-context-message"
@@ -233,11 +236,13 @@ export default function SupportPage({ detailBase = "/support" }) {
                       maxLength={messageMax}
                       required
                     />
-                    <span className="muted small" aria-live="polite">{message.length}/{messageMax} characters</span>
+                    <span className="ce-hint" aria-live="polite">{message.length}/{messageMax} characters</span>
                   </label>
-                  <button type="submit" className="btn btn-primary" disabled={creating || !message.trim()}>
-                    {creating ? "Submitting…" : "Submit support request"}
-                  </button>
+                  <div>
+                    <Button variant="primary" type="submit" disabled={creating || !message.trim()}>
+                      {creating ? "Submitting…" : "Submit support request"}
+                    </Button>
+                  </div>
                 </>
               )}
             </form>
@@ -246,52 +251,51 @@ export default function SupportPage({ detailBase = "/support" }) {
       )}
 
       <section aria-labelledby="support-tickets-heading">
-        <div className="section-head">
-          <h2 id="support-tickets-heading">My Tickets</h2>
-          {state.total > 0 && <span className="pill">{state.total}</span>}
+        <div className="ce-section-head">
+          <h2 id="support-tickets-heading" className="ce-h2">My Tickets</h2>
+          {state.total > 0 && <span className="ce-pill">{state.total}</span>}
         </div>
         {state.loading && (
-          <ul className="order-list" aria-label="Loading tickets">
+          <ul className="ce-order-list" aria-label="Loading tickets">
             {[0, 1, 2].map((key) => (
-              <li key={key} className="order-card" aria-hidden="true">
-                <div className="order-main">
-                  <div className="skeleton-block skeleton-line" style={{ width: "60%" }} />
-                  <div className="skeleton-block skeleton-line" style={{ width: "40%" }} />
+              <li key={key} className="ce-order-card" aria-hidden="true">
+                <div>
+                  <Skeleton width="60%" />
+                  <Skeleton width="40%" />
                 </div>
               </li>
             ))}
           </ul>
         )}
         {!state.loading && state.error && (
-          <div className="empty-state" role="alert">
-            <p>{state.error}</p>
-            <button type="button" className="btn btn-primary" onClick={load}>Retry</button>
-          </div>
+          <ErrorState message={state.error} onRetry={load} />
         )}
         {!state.loading && !state.error && state.items.length === 0 && (
-          <div className="empty-state">
-            <p>You haven&apos;t opened any support tickets yet.</p>
-          </div>
+          <EmptyState
+            title="No support tickets yet"
+            hint="You haven't opened any support tickets yet."
+          />
         )}
         {state.items.length > 0 && (
           <>
-            <ul className="order-list">
+            <ul className="ce-order-list">
               {state.items.map((ticket) => (
                 <TicketCard key={ticket.id} ticket={ticket} detailBase={detailBase} />
               ))}
             </ul>
-            <div className="pagination storefront-pagination">
-              <button type="button" className="btn btn-ghost" disabled={page <= 1} onClick={() => setOffset(offset - LIMIT)}>
+            <div className="ce-pagination">
+              <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setOffset(offset - LIMIT)} aria-label="Previous page">
                 ← Prev
-              </button>
-              <span>Page {page} of {pages}</span>
-              <button type="button" className="btn btn-ghost" disabled={page >= pages} onClick={() => setOffset(offset + LIMIT)}>
+              </Button>
+              <span className="ce-small ce-muted ce-tnum" aria-live="polite">Page {page} of {pages}</span>
+              <Button variant="ghost" size="sm" disabled={page >= pages} onClick={() => setOffset(offset + LIMIT)} aria-label="Next page">
                 Next →
-              </button>
+              </Button>
             </div>
           </>
         )}
       </section>
+      </div>
     </div>
   );
 }

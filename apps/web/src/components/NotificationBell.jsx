@@ -13,6 +13,7 @@ export default function NotificationBell() {
   const [unread, setUnread] = useState(0);
   const [error, setError] = useState(null);
   const rootRef = useRef(null);
+  const bellBtnRef = useRef(null);
 
   const reload = useCallback(async () => {
     if (!isAuthenticated) {
@@ -37,8 +38,11 @@ export default function NotificationBell() {
     onEvent: (event) => {
       if (event?.event === "notification" && !event.data?.is_read) {
         setUnread((value) => value + 1);
-        if (open) setOpen(false);
+        window.dispatchEvent(new CustomEvent("notifications-updated"));
       }
+    },
+    onAuthError: () => {
+      setError("Live updates unavailable (session expired). Refresh the page after signing in again.");
     },
   });
 
@@ -47,13 +51,21 @@ export default function NotificationBell() {
     function onDocClick(event) {
       if (!rootRef.current?.contains(event.target)) setOpen(false);
     }
+    function onKey(event) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        bellBtnRef.current?.focus();
+      }
+    }
     function onHashChange() {
       setOpen(false);
     }
     document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
     window.addEventListener("hashchange", onHashChange);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
       window.removeEventListener("hashchange", onHashChange);
     };
   }, [open]);
@@ -64,6 +76,7 @@ export default function NotificationBell() {
     <div className="notification-bell" ref={rootRef}>
       <button
         type="button"
+        ref={bellBtnRef}
         className={open ? "bell-btn is-open" : "bell-btn"}
         aria-label={open ? "Close notifications" : `Notifications${unread ? ` (${unread} unread)` : ""}`}
         aria-expanded={open}

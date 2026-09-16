@@ -3,8 +3,8 @@
 Chronological record of the major AI-assisted implementation work on the
 marketplace-platform, reconstructed from the repository, migration
 headers, test suites, and git history. Dates come from git where
-available; work performed in the uncommitted working tree after the
-last commit (2026-09-14) is marked "(working tree)". Exact per-change
+available; all work through Phase 10 is committed at `HEAD`
+(`4062345 feat: complete marketplace phases 7-10`). Exact per-change
 authorship within phases is not tracked.
 
 ## Phase 0 — Planning & scope
@@ -73,7 +73,7 @@ authorship within phases is not tracked.
 - Read dashboards: users, listings, orders, auctions (with settlement
   state), payments (filterable), reviews, reports, support tickets,
   moderation audit history.
-- Moderation actions: approve/reject/remove/restore listings,
+- Moderation actions: remove/restore listings (post-publication),
   suspend/reactivate users, remove reviews, update report status,
   assign/advance support tickets — each writing audit rows to
   moderation_actions.
@@ -100,7 +100,7 @@ authorship within phases is not tracked.
 - Fixed: multiple iterations on profile data and cleanup before the
   final "complete phase 6 user interaction" commit.
 
-## Phase 7 — Communication, Trust & Support (working tree, uncommitted)
+## Phase 7 — Communication, Trust & Support (committed at `4062345`)
 
 - **7.1 Ratings & reviews** (migration `0013`): reviews on DELIVERED
   orders only, one per order, 1–5 rating, admin soft-removal; seller
@@ -115,11 +115,12 @@ authorship within phases is not tracked.
   additional notification event types wired into domain endpoints
   (outbid, auction won/ended, order placed/shipped/delivered, listing
   moderation).
-- WebSocket live push: `/api/v1/ws` with in-process connection manager;
+- WebSocket live push: `/api/v1/ws` with first-frame auth handshake and
+  in-process connection manager;
   NotificationBell/Panel in the SPA.
 - Suite: phase7_remaining_smoke (66 checks) — all green.
 
-## Phase 8 — Security & Reliability (working tree, uncommitted; partial)
+## Phase 8 — Security & Reliability (committed at `4062345`)
 
 - **8.1 Auth hardening** (migration `0016`):
   - Refresh-token rotation: hashed one-time-use rows with family IDs;
@@ -150,7 +151,7 @@ authorship within phases is not tracked.
   - Suite: auction_reserve_smoke (34 checks) — green.
 - **Remaining Phase 8 security work: not completed.**
 
-## Phase 8 completion — Security & Reliability (working tree, uncommitted)
+## Phase 8 completion — Security & Reliability (committed at `4062345`)
 
 Completed the remaining Phase 8 audit items (8.4–8.17; 8.4–8.6 were
 already present from the earlier interrupted session but untested):
@@ -203,10 +204,10 @@ already present from the earlier interrupted session but untested):
 
 Suites: all existing suites updated to activate accounts through the
 new verification flow; **phase8_final_smoke** (55 checks) covers
-8.7–8.17. Full regression: 19/19 suites `FAILURES: none`.
+8.7–8.17. Full regression: 18/18 suites `FAILURES: none`.
 `npm run build` green. No new migrations (0017 remains head).
 
-## Phase 9 — Documentation (working tree, current task)
+## Phase 9 — Documentation (completed, committed at `4062345`)
 
 - Created at the project root, then centralized under `docs/`:
   DECISIONS.md, FLOW.md, PROJECT_STATUS.md, AI_CHANGELOG.md, PHASES.md.
@@ -214,7 +215,7 @@ new verification flow; **phase8_final_smoke** (55 checks) covers
   rewritten with Mermaid diagrams.
 - Documentation-only change: no application behavior touched.
 
-## Post-publication moderation lifecycle change (working tree, current task)
+## Post-publication moderation lifecycle change (committed at `4062345`)
 
 - Product decision: seller listings publish DRAFT -> ACTIVE immediately
   (POST /catalog/listings/{id}/submit, same validation as before,
@@ -240,6 +241,11 @@ new verification flow; **phase8_final_smoke** (55 checks) covers
 - Docs: DECISIONS.md (new record), FLOW.md (seller + moderation flows),
   PROJECT_STATUS.md, PHASES.md updated.
 
-## Phase 10 — UI/UX polish
+## Phase 10 — UI/UX polish (completed, committed at `4062345`)
 
-- Not started (planned).
+- Frontend-only polish (no migration beyond `0017`): sell wizard
+  (`Sell.jsx`, `sell/*`), account workspace (`account/*`), category
+  browse (`BrowseCategories.jsx`, `CategoryMegaMenu.jsx`,
+  `categoryDirectory.js`), checkout components (`checkout/*`),
+  chat/support components, admin UI polish, `App.jsx` rewrite,
+  `styles.css` expansion.

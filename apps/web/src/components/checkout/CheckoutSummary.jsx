@@ -1,4 +1,5 @@
 import { formatPrice } from "../../data/listings.js";
+import Button from "../ui/Button.jsx";
 
 /**
  * Sticky order summary card used by all checkout pages: source pill,
@@ -20,34 +21,34 @@ export default function CheckoutSummary({
   note,
 }) {
   return (
-    <aside className="co-summary" aria-label="Order summary">
-      <div className="co-summary-card">
-        <p className="co-eyebrow">{eyebrow}</p>
-        <h2 className="co-title">
+    <aside aria-label="Order summary">
+      <div className="ce-card ce-txn">
+        <p className="ce-micro ce-muted">{eyebrow}</p>
+        <h2 className="ce-h3">
           {titleHref ? <a href={titleHref}>{title}</a> : title}
         </h2>
         {sourcePill}
-        <dl className="kv co-lines">
+        <dl className="ce-lines">
           {rows.map((row) => (
-            <div className="co-line" key={row.label}>
+            <div key={row.label}>
               <dt>{row.label}</dt>
-              <dd className={row.strong ? "co-strong" : undefined}>{row.value}</dd>
+              <dd><strong>{row.value}</strong></dd>
             </div>
           ))}
         </dl>
-        <p className="co-total">
+        <p className="ce-total">
           <span>{totalLabel}</span>
-          <strong>{formatPrice(totalMinor)}</strong>
+          <strong className="ce-tnum">{formatPrice(totalMinor)}</strong>
         </p>
         {error && (
-          <p className="form-error" role="alert">
+          <p className="ce-error" role="alert">
             {error}
           </p>
         )}
-        <button type="submit" className="btn btn-bid" disabled={busy || submitDisabled}>
+        <Button variant="primary" type="submit" block disabled={busy || submitDisabled}>
           {busy ? "Working…" : submitLabel}
-        </button>
-        {note && <p className="muted small">{note}</p>}
+        </Button>
+        {note && <p className="ce-small ce-muted">{note}</p>}
       </div>
     </aside>
   );

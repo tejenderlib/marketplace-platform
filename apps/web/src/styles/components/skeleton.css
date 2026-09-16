@@ -1,0 +1,34 @@
+/* CE skeleton shimmer (geometry-matched by callers, motion-gated). */
+
+.ce-skeleton {
+  border-radius: var(--ce-r-control);
+  background: linear-gradient(
+    100deg,
+    var(--ce-well) 40%,
+    var(--ce-soft) 50%,
+    var(--ce-well) 60%
+  );
+  background-size: 200% 100%;
+  animation: ce-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ce-skeleton {
+    animation-name: ce-shimmer;
+  }
+}
+
+@keyframes ce-shimmer {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -20% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ce-skeleton {
+    animation: none;
+  }
+}

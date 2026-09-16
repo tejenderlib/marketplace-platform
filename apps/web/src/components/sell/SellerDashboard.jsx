@@ -1,4 +1,7 @@
 import { formatPrice } from "../../data/listings.js";
+import Button from "../ui/Button.jsx";
+import Pill from "../ui/Pill.jsx";
+import { EmptyState, ErrorState, LoadingState } from "../ui/States.jsx";
 
 const STATUS_FILTERS = [
   "",
@@ -11,30 +14,6 @@ const STATUS_FILTERS = [
   "ARCHIVED",
 ];
 
-function statusPillClass(status) {
-  switch (status) {
-    case "ACTIVE":
-    case "DRAFT":
-      return "pill pill-active";
-    case "REMOVED":
-      return "pill pill-cancelled";
-    case "RESERVED":
-      return "pill pill-auction";
-    case "SOLD":
-      return "pill pill-sold";
-    case "EXPIRED":
-      return "pill pill-cancelled";
-    // PENDING_REVIEW / REJECTED are legacy pre-approval states; they render
-    // generically if a historical row is encountered.
-    case "PENDING_REVIEW":
-      return "pill pill-ending";
-    case "REJECTED":
-      return "pill pill-cancelled";
-    default:
-      return "pill";
-  }
-}
-
 function statusLabel(status) {
   return status
     .split("_")
@@ -42,7 +21,7 @@ function statusLabel(status) {
     .join(" ");
 }
 
-/** Seller's own listings with lifecycle-legal actions only. */
+/** Seller's own listings with lifecycle-legal actions only. Logic unchanged. */
 export default function SellerDashboard({
   items,
   total,
@@ -59,20 +38,20 @@ export default function SellerDashboard({
   busyId,
 }) {
   return (
-    <section className="sell-dash" aria-labelledby="sell-dash-heading">
-      <div className="section-head">
-        <h2 id="sell-dash-heading">My listings</h2>
-        <button type="button" className="btn btn-sell" onClick={onNew}>
+    <section aria-labelledby="sell-dash-heading" className="ce-stack">
+      <div className="ce-discovery-head">
+        <h2 id="sell-dash-heading" className="ce-h2">My listings</h2>
+        <Button variant="primary" size="sm" onClick={onNew}>
           + New Listing
-        </button>
+        </Button>
       </div>
 
-      <div className="sale-filter" role="group" aria-label="Filter by status">
+      <div className="ce-segmented" role="group" aria-label="Filter by status">
         {STATUS_FILTERS.map((value) => (
           <button
             key={value}
             type="button"
-            className={statusFilter === value ? "chip is-active" : "chip"}
+            className={statusFilter === value ? "ce-btn ce-btn--secondary ce-btn--sm is-active" : "ce-btn ce-btn--ghost ce-btn--sm"}
             aria-pressed={statusFilter === value}
             onClick={() => onStatusFilter(value)}
           >
@@ -81,32 +60,27 @@ export default function SellerDashboard({
         ))}
       </div>
 
-      {loading && <p className="muted" role="status">Loading your listings…</p>}
-      {error && (
-        <div className="empty-state" role="alert">
-          <p>{error}</p>
-          <button type="button" className="btn btn-primary" onClick={onRetry}>
-            Retry
-          </button>
-        </div>
-      )}
+      {loading && <LoadingState label="Loading your listings…" />}
+      {error && <ErrorState message={error} onRetry={onRetry} />}
       {!loading && !error && items.length === 0 && (
-        <div className="empty-state">
-          <p>No listings here yet.</p>
-          <button type="button" className="btn btn-primary" onClick={onNew}>
-            Create your first listing
-          </button>
-        </div>
+        <EmptyState
+          title="No listings here yet"
+          action={
+            <Button variant="primary" size="sm" onClick={onNew}>
+              Create your first listing
+            </Button>
+          }
+        />
       )}
       {!loading && !error && items.length > 0 && (
-        <ul className="sell-list">
+        <ul className="ce-sell-list">
           {items.map((item) => {
             const busy = busyId === item.id;
             return (
-              <li key={item.id} className="sell-item">
-                <div className="sell-item-main">
-                  <p className="sell-item-title">{item.title}</p>
-                  <p className="muted small">
+              <li key={item.id} className="ce-sell-item">
+                <div className="ce-sell-item-main">
+                  <p className="ce-sell-item-title">{item.title}</p>
+                  <p className="ce-small ce-muted">
                     {item.sale_type === "AUCTION"
                       ? "Auction"
                       : item.fixed_price_minor != null
@@ -116,50 +90,30 @@ export default function SellerDashboard({
                     {item.category?.name ?? "—"}
                   </p>
                 </div>
-                <span className={statusPillClass(item.status)}>{statusLabel(item.status)}</span>
-                <div className="sell-item-actions">
+                <Pill status={item.status}>{statusLabel(item.status)}</Pill>
+                <div className="ce-cluster">
                   {item.status === "DRAFT" && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      disabled={busy}
-                      onClick={() => onEdit(item)}
-                    >
+                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => onEdit(item)}>
                       Continue
-                    </button>
+                    </Button>
                   )}
                   {item.status === "DRAFT" && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      disabled={busy}
-                      onClick={() => onSubmitDirect(item)}
-                    >
+                    <Button variant="secondary" size="sm" disabled={busy} onClick={() => onSubmitDirect(item)}>
                       Publish
-                    </button>
+                    </Button>
                   )}
                   {item.status === "REMOVED" && (
-                    <span className="muted small">Removed by moderation</span>
+                    <span className="ce-small ce-muted">Removed by moderation</span>
                   )}
                   {(item.status === "ACTIVE" || item.status === "DRAFT") && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      disabled={busy}
-                      onClick={() => onArchive(item)}
-                    >
+                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => onArchive(item)}>
                       Archive
-                    </button>
+                    </Button>
                   )}
                   {item.status === "ACTIVE" && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      disabled={busy}
-                      onClick={() => onView(item)}
-                    >
+                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => onView(item)}>
                       View
-                    </button>
+                    </Button>
                   )}
                 </div>
               </li>

@@ -116,7 +116,8 @@ through the auditable, lock-protected REST path — there is no second
 authoritative protocol to secure or reconcile.
 
 **Current implementation.** Domain routers under `app/api/v1`; WebSocket
-`/api/v1/ws` (auth via token query param) with an in-process
+`/api/v1/ws` (first-frame `{"type":"auth"}` handshake, 10 s timeout,
+4401/4403 closes) with an in-process
 `ConnectionManager` (`app/ws/manager.py`) fanning out notification events
 to the right user sockets.
 
@@ -278,7 +279,9 @@ payments sit behind provider abstractions (§13, §14) so nothing is
 cloud-specific.
 
 **Current implementation.** Compose injects env-only configuration; no
-Redis, queues, or schedulers exist in the stack or codebase.
+Redis, queues, or external schedulers exist in the stack. The sole
+exception is the 8.12 in-process auction auto-close scheduler thread
+(30 s cadence, single-instance) invoking the idempotent `close_auction`.
 
 **Future consideration.** Scaling beyond one instance would add Redis
 pub/sub for WebSocket fan-out and shared rate-limit counters — the

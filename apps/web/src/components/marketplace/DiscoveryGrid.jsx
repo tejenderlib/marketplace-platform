@@ -1,19 +1,22 @@
+/**
+ * DiscoveryGrid: editorial discovery section. Same data contract as the
+ * legacy ListingGrid (q / category_id / sale_type only — no fake sorts or
+ * filters). Sale-type as a quiet segmented control; auction cards intermix
+ * chronologically in backend order.
+ */
+
+import Button from "../ui/Button.jsx";
+import { EmptyState, ErrorState } from "../ui/States.jsx";
 import ListingCard from "./ListingCard.jsx";
-import ListingSkeleton from "./ListingSkeleton.jsx";
+import ListingCardSkeleton from "./ListingCardSkeleton.jsx";
 
 const SALE_TYPES = [
-  ["", "All types"],
+  ["", "All"],
   ["FIXED_PRICE", "Fixed price"],
+  ["AUCTION", "Auctions"],
 ];
 
-/**
- * Marketplace discovery section: toolbar (result count + search/category
- * context + the backend-supported sale-type filter), card grid, and
- * pagination. Only q / category_id / sale_type filtering exists in the
- * API, so no sort control or extra filter panel is rendered — anything
- * else would be a fake frontend-only filter.
- */
-export default function ListingGrid({
+export default function DiscoveryGrid({
   items,
   total,
   loading,
@@ -37,37 +40,33 @@ export default function ListingGrid({
 
   return (
     <section
-      className="section"
+      className="ce-discovery"
       id="listings"
       aria-labelledby="listings-heading"
       aria-busy={loading}
     >
-      <div className="section-head">
-        <h2 id="listings-heading">Fresh listings</h2>
-        <p className="section-sub" role="status">
-          {total} {total === 1 ? "ad" : "ads"}
+      <div className="ce-discovery-head">
+        <div>
+          <p className="ce-micro">Curated marketplace</p>
+          <h2 id="listings-heading" className="ce-h2">Fresh listings</h2>
+        </div>
+        <p className="ce-small ce-muted ce-tnum" role="status">
+          {total} {total === 1 ? "listing" : "listings"}
         </p>
       </div>
 
-      <div className="discovery-toolbar">
-        <div
-          className="discovery-context"
-          aria-label="Active search and category"
-        >
+      <div className="ce-discovery-toolbar">
+        <div className="ce-cluster" aria-label="Active search and category">
           {query ? (
-            <span className="context-pill">
+            <span className="ce-context-pill">
               “<strong>{query}</strong>”
-              <button
-                type="button"
-                onClick={onClearSearch}
-                aria-label="Clear search"
-              >
+              <button type="button" onClick={onClearSearch} aria-label="Clear search">
                 ✕
               </button>
             </span>
           ) : null}
           {hasCategory ? (
-            <span className="context-pill">
+            <span className="ce-context-pill">
               in <strong>{activeCategoryName}</strong>
               <button
                 type="button"
@@ -79,15 +78,15 @@ export default function ListingGrid({
             </span>
           ) : null}
           {!query && !hasCategory ? (
-            <span className="muted">Showing everything</span>
+            <span className="ce-small ce-muted">Showing everything</span>
           ) : null}
         </div>
-        <div className="sale-filter discovery-sale" role="group" aria-label="Sale type filter">
+        <div className="ce-segmented" role="group" aria-label="Sale type filter">
           {SALE_TYPES.map(([value, label]) => (
             <button
               key={value}
               type="button"
-              className={saleType === value ? "chip is-active" : "chip"}
+              className={saleType === value ? "ce-btn ce-btn--secondary ce-btn--sm is-active" : "ce-btn ce-btn--ghost ce-btn--sm"}
               aria-pressed={saleType === value}
               onClick={() => onSelectSaleType(value)}
             >
@@ -98,31 +97,25 @@ export default function ListingGrid({
       </div>
 
       {showSkeletons && (
-        <div className="listing-grid" aria-label="Loading listings">
+        <div className="ce-grid" aria-label="Loading listings">
           {Array.from({ length: 8 }, (_, index) => (
-            <ListingSkeleton key={index} />
+            <ListingCardSkeleton key={index} />
           ))}
         </div>
       )}
       {error && !showSkeletons && (
-        <div className="empty-state" role="alert">
-          <p>{error.message ?? error}</p>
-          <button type="button" className="btn btn-primary" onClick={onRetry}>
-            Retry
-          </button>
-        </div>
+        <ErrorState message={error.message ?? error} onRetry={onRetry} />
       )}
       {!loading && !error && items.length === 0 && (
-        <div className="empty-state">
-          <p>No listings match your search.</p>
-          <button type="button" className="btn btn-primary" onClick={onClearFilters}>
-            Clear filters
-          </button>
-        </div>
+        <EmptyState
+          title="No listings match your search"
+          hint="Try a different term or clear the filters."
+          action={<Button variant="secondary" size="sm" onClick={onClearFilters}>Clear filters</Button>}
+        />
       )}
       {!showSkeletons && !error && items.length > 0 && (
         <>
-          <div className="listing-grid">
+          <div className="ce-grid">
             {items.map((listing) => (
               <ListingCard
                 key={listing.id}
@@ -132,28 +125,28 @@ export default function ListingGrid({
               />
             ))}
           </div>
-          <div className="pagination storefront-pagination">
-            <button
-              type="button"
-              className="btn btn-ghost"
+          <div className="ce-pagination">
+            <Button
+              variant="ghost"
+              size="sm"
               disabled={page <= 1}
               onClick={() => onPage(page - 1)}
               aria-label="Previous page"
             >
               ← Prev
-            </button>
-            <span className="pagination-status" aria-live="polite">
+            </Button>
+            <span className="ce-small ce-muted ce-tnum" aria-live="polite">
               Page {page} of {pages}
             </span>
-            <button
-              type="button"
-              className="btn btn-ghost"
+            <Button
+              variant="ghost"
+              size="sm"
               disabled={page >= pages}
               onClick={() => onPage(page + 1)}
               aria-label="Next page"
             >
               Next →
-            </button>
+            </Button>
           </div>
         </>
       )}

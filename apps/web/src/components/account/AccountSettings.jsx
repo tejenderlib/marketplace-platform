@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { ApiError } from "../../api/client.js";
 import { useAuth } from "../../auth/AuthContext.jsx";
+import Button from "../ui/Button.jsx";
+import Card from "../ui/Card.jsx";
 
 const PRESET_AVATARS = [
   { key: "blue", color: "#2563eb" },
@@ -16,7 +18,7 @@ function AvatarItem({ avatar, selected, onSelect }) {
   return (
     <button
       type="button"
-      className={selected ? "avatar-item is-selected" : "avatar-item"}
+      className={selected ? "ce-avatar-pick is-selected" : "ce-avatar-pick"}
       style={{ background: avatar.color }}
       onClick={onSelect}
       aria-label={`Avatar color ${avatar.key}`}
@@ -71,37 +73,39 @@ export default function AccountSettings() {
   }
 
   return (
-    <section aria-labelledby="acct-settings-heading">
-      <h2 id="acct-settings-heading">Settings</h2>
+    <section aria-labelledby="acct-settings-heading" className="ce-stack">
+      <h2 id="acct-settings-heading" className="ce-h2">Settings</h2>
       {feedback && (
-        <p className={feedback.kind === "error" ? "form-error" : "form-ok"} role="status">
+        <p className={feedback.kind === "error" ? "ce-error" : "ce-ok"} role="status">
           {feedback.text}
         </p>
       )}
       {!editing ? (
-        <div className="co-card">
-          <dl className="kv co-lines">
-            <div className="co-line">
+        <Card>
+          <dl className="ce-facts">
+            <div>
               <dt>Display name</dt>
               <dd>{user?.profile?.display_name ?? "—"}</dd>
             </div>
-            <div className="co-line">
+            <div>
               <dt>Email</dt>
               <dd>{user?.email}</dd>
             </div>
           </dl>
-          <p className="muted small">
+          <p className="ce-small ce-muted">
             Only display name and avatar can be changed here today. Password, email
             preferences, and payment settings are not available yet.
           </p>
-          <button type="button" className="btn btn-primary" onClick={() => setEditing(true)}>
-            Edit profile
-          </button>
-        </div>
+          <div>
+            <Button variant="primary" onClick={() => setEditing(true)}>
+              Edit profile
+            </Button>
+          </div>
+        </Card>
       ) : (
-        <form className="co-card" onSubmit={saveProfile}>
-          <div className="form-grid">
-            <label>
+        <Card>
+          <form className="ce-form" onSubmit={saveProfile}>
+            <label className="ce-field">
               <span>Display name</span>
               <input
                 value={form.display_name}
@@ -110,9 +114,9 @@ export default function AccountSettings() {
                 placeholder="At least 2 characters"
               />
             </label>
-            <div>
-              <span className="form-label">Avatar</span>
-              <div className="avatar-grid">
+            <div className="ce-field">
+              <span id="avatar-label">Avatar</span>
+              <div className="ce-avatar-grid" role="group" aria-labelledby="avatar-label">
                 {PRESET_AVATARS.map((avatar) => (
                   <AvatarItem
                     key={avatar.key}
@@ -123,17 +127,17 @@ export default function AccountSettings() {
                 ))}
               </div>
             </div>
-          </div>
-          <div className="card-actions">
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? "Saving…" : "Save changes"}
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={() => setEditing(false)}>
-              Cancel
-            </button>
-          </div>
-          <p className="muted small">Display name and avatar are editable. Changes apply instantly.</p>
-        </form>
+            <div className="ce-cluster">
+              <Button variant="primary" type="submit" disabled={saving}>
+                {saving ? "Saving…" : "Save changes"}
+              </Button>
+              <Button variant="ghost" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+            </div>
+            <p className="ce-small ce-muted">Display name and avatar are editable. Changes apply instantly.</p>
+          </form>
+        </Card>
       )}
     </section>
   );

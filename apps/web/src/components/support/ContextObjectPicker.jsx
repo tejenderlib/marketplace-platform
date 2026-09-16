@@ -11,26 +11,26 @@ export default function ContextObjectPicker({
   describedBy,
 }) {
   return (
-    <fieldset className="support-picker">
-      <legend>{legend}</legend>
-      <ul aria-describedby={describedBy}>
+    <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
+      <legend className="ce-h3">{legend}</legend>
+      <ul className="ce-pick-list" aria-describedby={describedBy}>
         {items.map((item) => {
           const active = selectedId === item.id;
           return (
             <li key={item.id}>
               <button
                 type="button"
-                className={active ? "support-pick is-active" : "support-pick"}
+                className={active ? "ce-pick is-active" : "ce-pick"}
                 aria-pressed={active}
                 onClick={() => onSelect(item.id)}
               >
-                <span className="support-pick-main">
+                <span>
                   <strong>{item.title}</strong>
-                  <span className="muted small">{item.ref}</span>
-                  {item.meta && <span className="muted small">{item.meta}</span>}
-                  {item.sub && <span className="muted small">{item.sub}</span>}
+                  <span className="ce-small ce-muted">{item.ref}</span>
+                  {item.meta && <span className="ce-small ce-muted">{item.meta}</span>}
+                  {item.sub && <span className="ce-small ce-muted">{item.sub}</span>}
                 </span>
-                {item.pill && <span className={item.pill.className}>{item.pill.text}</span>}
+                {item.pill && <span className="ce-pill">{item.pill.text}</span>}
               </button>
             </li>
           );

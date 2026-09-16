@@ -1,0 +1,32 @@
+/* CE base: page defaults for preview + future pages. Legacy pages keep
+   their own body rules in styles.css; no global reset beyond border-box. */
+
+.ce-scope {
+  box-sizing: border-box;
+  background: var(--ce-paper);
+  color: var(--ce-text);
+  font-family: var(--ce-font-sans);
+}
+
+.ce-scope *,
+.ce-scope *::before,
+.ce-scope *::after {
+  box-sizing: inherit;
+}
+
+.ce-scope button,
+.ce-scope input,
+.ce-scope select,
+.ce-scope textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.ce-scope ::placeholder {
+  color: var(--ce-muted);
+  opacity: 1;
+}
+
+.ce-scope :disabled {
+  cursor: not-allowed;
+}

@@ -1,0 +1,31 @@
+/* CE commerce display: price + countdown. */
+
+.ce-price {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 700;
+  color: var(--ce-ink);
+}
+
+.ce-price--lg {
+  font-size: 1.5rem;
+}
+
+.ce-price-note {
+  font-size: var(--ce-small);
+  font-weight: 400;
+  color: var(--ce-muted);
+}
+
+.ce-countdown {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 600;
+}
+
+.ce-countdown--urgent {
+  color: var(--ce-warning);
+}
+
+.ce-countdown--ended {
+  color: var(--ce-muted);
+  font-weight: 400;
+}

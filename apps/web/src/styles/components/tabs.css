@@ -1,0 +1,29 @@
+/* CE tabs: underline indicator, roving focus handled in Tabs.jsx. */
+
+.ce-tabs {
+  display: flex;
+  gap: var(--ce-2);
+  border-bottom: 1px solid var(--ce-border);
+}
+
+.ce-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: var(--ce-3) var(--ce-4);
+  font-size: var(--ce-body);
+  font-weight: 600;
+  color: var(--ce-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+
+.ce-tab:hover {
+  color: var(--ce-ink);
+}
+
+.ce-tab[aria-selected="true"] {
+  color: var(--ce-brand);
+  border-bottom-color: var(--ce-brand);
+}

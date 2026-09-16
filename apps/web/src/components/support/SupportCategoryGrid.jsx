@@ -14,24 +14,24 @@ const CATEGORIES = [
 export default function SupportCategoryGrid({ selected, onSelect }) {
   return (
     <div>
-      <ul className="support-categories" aria-label="Support categories">
+      <ul className="ce-topic-grid" aria-label="Support categories">
         {CATEGORIES.map((cat) => (
           <li key={cat.key}>
             <button
               type="button"
-              className={selected === cat.key ? "support-category is-active" : "support-category"}
+              className={selected === cat.key ? "ce-topic is-active" : "ce-topic"}
               aria-pressed={selected === cat.key}
               onClick={() => onSelect(cat.key)}
             >
               <strong>{cat.label}</strong>
-              <span className="muted small">{cat.hint}</span>
+              <small>{cat.hint}</small>
             </button>
           </li>
         ))}
         <li key="auctions" aria-disabled="true">
-          <div className="support-category is-disabled" title="Auction-specific support is coming later">
+          <div className="ce-topic" title="Auction-specific support is coming later" aria-disabled="true">
             <strong>Auctions</strong>
-            <span className="muted small">Coming soon — auction-specific support will use an Auction ID.</span>
+            <small>Coming soon — auction-specific support will use an Auction ID.</small>
           </div>
         </li>
       </ul>

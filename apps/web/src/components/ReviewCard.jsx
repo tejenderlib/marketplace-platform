@@ -9,18 +9,16 @@ function formatDate(value) {
 export default function ReviewCard({ review, reviewerName }) {
   const name = reviewerName ?? "Former member";
   return (
-    <li className="review-item">
-      <span className="review-avatar" aria-hidden="true">
-        {name.trim().charAt(0).toUpperCase() || "?"}
-      </span>
-      <div className="review-main">
-        <div className="review-item-head">
-          <strong>{name}</strong>
-          <span className="muted small">{formatDate(review.created_at)}</span>
-        </div>
-        <RatingStars value={review.rating} size="sm" />
-        {review.comment && <p className="review-comment">{review.comment}</p>}
+    <li className="ce-review">
+      <div className="ce-review-head">
+        <span className="ce-avatar" aria-hidden="true">
+          {name.trim().charAt(0).toUpperCase() || "?"}
+        </span>
+        <strong>{name}</strong>
+        <span className="ce-small ce-muted">{formatDate(review.created_at)}</span>
       </div>
+      <RatingStars value={review.rating} size="sm" />
+      {review.comment && <p>{review.comment}</p>}
     </li>
   );
 }

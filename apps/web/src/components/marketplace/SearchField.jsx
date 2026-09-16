@@ -1,9 +1,10 @@
 /**
- * Compact header search bound to the SAME query state as the hero search
- * (App owns the state + debounce pipeline; backend search is untouched).
- * Shrinks gracefully via flex; full-width row on mobile.
+ * SearchField: the single coherent search control, used in both the site
+ * header (compact) and the homepage hero (large). Same App-owned query
+ * state + debounce pipeline; submitting scrolls to results.
  */
-export default function HeaderSearch({ query, onQueryChange }) {
+
+export default function SearchField({ query, onQueryChange, size, id, label }) {
   function scrollToResults() {
     const reduced =
       typeof window !== "undefined" &&
@@ -15,7 +16,7 @@ export default function HeaderSearch({ query, onQueryChange }) {
 
   return (
     <form
-      className="header-search"
+      className={size === "lg" ? "ce-search ce-search--lg" : "ce-search"}
       role="search"
       onSubmit={(event) => {
         event.preventDefault();
@@ -23,7 +24,7 @@ export default function HeaderSearch({ query, onQueryChange }) {
       }}
     >
       <svg
-        className="header-search-icon"
+        className="ce-search-icon"
         width="16"
         height="16"
         viewBox="0 0 24 24"
@@ -39,16 +40,17 @@ export default function HeaderSearch({ query, onQueryChange }) {
         <path d="M16.5 16.5L21 21" />
       </svg>
       <input
+        id={id}
         type="search"
         value={query ?? ""}
         onChange={(event) => onQueryChange(event.target.value)}
-        placeholder="Search listings…"
-        aria-label="Search listings"
+        placeholder='Try "bike", "iPhone", or "laptop"…'
+        aria-label={label ?? "Search the marketplace"}
       />
       {query ? (
         <button
           type="button"
-          className="header-search-clear"
+          className="ce-search-clear"
           onClick={() => onQueryChange("")}
           aria-label="Clear search"
         >

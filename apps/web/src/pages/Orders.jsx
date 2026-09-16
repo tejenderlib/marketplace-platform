@@ -6,8 +6,11 @@ import { getOrder, myOrders } from "../api/checkout.js";
 import { createReview } from "../api/reviews.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import OrderTimeline from "../components/checkout/OrderTimeline.jsx";
+import Pill from "../components/ui/Pill.jsx";
 import StatusPill from "../components/checkout/StatusPill.jsx";
+import Button from "../components/ui/Button.jsx";
 import ReviewModal from "../components/ReviewModal.jsx";
+import { EmptyState, ErrorState, LoadingState } from "../components/ui/States.jsx";
 import { useReviewedOrders } from "../hooks/useReviewedOrders.js";
 import { formatDateTime, sourceLabel } from "../components/checkout/orderDisplay.js";
 
@@ -62,8 +65,8 @@ export function OrdersPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="content">
-        <p className="muted">Redirecting to login…</p>
+      <div className="ce-stack">
+        <p className="ce-small ce-muted">Redirecting to login…</p>
       </div>
     );
   }
@@ -72,90 +75,86 @@ export function OrdersPage() {
   const pages = Math.max(1, Math.ceil(state.total / LIMIT));
 
   return (
-    <div className="content">
-      <h1>My Orders</h1>
+    <div className="ce-stack">
+      <div>
+        <p className="ce-micro ce-muted">Purchase history</p>
+        <h1 className="ce-h1">My Orders</h1>
+      </div>
       {reviewNote && (
-        <p className="form-ok" role="status">
+        <p className="ce-ok" role="status">
           {reviewNote}
         </p>
       )}
-      {state.loading && <p className="muted" role="status">Loading orders…</p>}
+      {state.loading && <LoadingState label="Loading orders…" />}
       {state.error && (
-        <div className="empty-state" role="alert">
-          <p>{state.error}</p>
-          <button type="button" className="btn btn-primary" onClick={load}>Retry</button>
-        </div>
+        <ErrorState message={state.error} onRetry={load} />
       )}
       {!state.loading && !state.error && state.items.length === 0 && (
-        <div className="empty-state">
-          <p>No orders yet.</p>
-          <a className="btn btn-primary" href="#/">Browse listings</a>
-        </div>
+        <EmptyState
+          title="No orders yet"
+          hint="Your completed checkouts will appear here."
+          action={<Button variant="secondary" size="sm" href="#/">Browse listings</Button>}
+        />
       )}
       {!state.error && state.items.length > 0 && (
         <>
-          <ul className="order-list">
+          <ul className="ce-order-list">
             {state.items.map((order) => (
-              <li key={order.id} className="order-card">
-                <a
-                  className="order-thumb"
-                  href={`#/orders/${order.id}`}
-                  aria-hidden="true"
-                  tabIndex={-1}
-                >
+              <li key={order.id} className="ce-order-card">
+                <span className="ce-thumb" aria-hidden="true">
                   {(order.listing_title_snapshot ?? "?").charAt(0).toUpperCase()}
-                </a>
-                <div className="order-main">
-                  <p className="order-title">
+                </span>
+                <div>
+                  <p className="ce-item-title">
                     <a href={`#/orders/${order.id}`}>{order.listing_title_snapshot}</a>
                   </p>
-                  <p className="muted small">
+                  <p className="ce-small ce-muted">
                     {sourceLabel(order.source)}
                     {" · "}
                     {order.seller?.display_name ?? "—"}
                     {" · "}
                     {formatDateTime(order.created_at)}
                   </p>
-                  <p className="order-pills">
+                  <p>
                     <StatusPill status={order.status} />
                   </p>
                 </div>
-                <p className="order-total">{formatPrice(order.total_minor)}</p>
-                <div className="order-action">
+                <p className="ce-order-total ce-tnum">{formatPrice(order.total_minor)}</p>
+                <div className="ce-order-action">
                   {order.status === "DELIVERED" ? (
                     reviewedIds.has(order.id) ? (
-                      <span className="pill pill-paid">Reviewed</span>
+                      <Pill status="PAYMENT_COMPLETED">Reviewed</Pill>
                     ) : (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
+                      <Button
+                        variant="primary"
+                        size="sm"
                         onClick={() => {
                           setReviewNote(null);
                           setReviewTarget(order);
                         }}
                       >
                         Rate &amp; Review
-                      </button>
+                      </Button>
                     )
                   ) : (order.status === "PENDING_PAYMENT" || order.status === "PAYMENT_FAILED") ? (
-                    <a className="btn btn-ghost btn-sm" href={`#/checkout/payment/${order.id}`}>
+                    <Button variant="secondary" size="sm" href={`#/checkout/payment/${order.id}`}>
                       Pay now
-                    </a>
+                    </Button>
                   ) : (
-                    <span className="muted small">—</span>
+                    <span className="ce-small ce-muted">—</span>
                   )}
                 </div>
               </li>
             ))}
           </ul>
-          <div className="pagination storefront-pagination">
-            <button type="button" className="btn btn-ghost" disabled={page <= 1} onClick={() => setOffset(offset - LIMIT)} aria-label="Previous page">
+          <div className="ce-pagination">
+            <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setOffset(offset - LIMIT)} aria-label="Previous page">
               ← Prev
-            </button>
-            <span className="pagination-status" aria-live="polite">Page {page} of {pages}</span>
-            <button type="button" className="btn btn-ghost" disabled={page >= pages} onClick={() => setOffset(offset + LIMIT)} aria-label="Next page">
+            </Button>
+            <span className="ce-small ce-muted ce-tnum" aria-live="polite">Page {page} of {pages}</span>
+            <Button variant="ghost" size="sm" disabled={page >= pages} onClick={() => setOffset(offset + LIMIT)} aria-label="Next page">
               Next →
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -202,23 +201,20 @@ export function OrderDetailPage({ id }) {
 
   if (!isAuthenticated) {
     return (
-      <div className="content">
-        <p className="muted">Redirecting to login…</p>
+      <div className="ce-stack">
+        <p className="ce-small ce-muted">Redirecting to login…</p>
       </div>
     );
   }
-  if (state.loading) return <div className="content"><p className="muted" role="status">Loading order…</p></div>;
+  if (state.loading) return <div className="ce-stack"><LoadingState label="Loading order…" /></div>;
   if (state.error) {
     return (
-      <div className="content">
-        <div className="empty-state" role="alert">
-          <p>{state.error}</p>
-          <button type="button" className="btn btn-primary" onClick={load}>Retry</button>
-        </div>
+      <div className="ce-stack">
+        <ErrorState message={state.error} onRetry={load} />
       </div>
     );
   }
-  if (!state.order) return <div className="content"><p className="muted">Order not found.</p></div>;
+  if (!state.order) return <div className="ce-stack"><p className="ce-small ce-muted">Order not found.</p></div>;
 
   const order = state.order;
   const snap = order.shipping_snapshot;
@@ -241,75 +237,77 @@ export function OrderDetailPage({ id }) {
   }
 
   return (
-    <div className="content co-page">
-      <a className="back-link" href="#/orders">← My orders</a>
-      <div className="order-head">
-        <div>
-          <p className="co-eyebrow">
-            Order {order.id.slice(0, 8)}… · {sourceLabel(order.source)}
-          </p>
-          <h1 className="order-title-lg">{order.listing_title_snapshot}</h1>
+    <div className="ce-stack">
+      <div>
+        <a className="ce-back" href="#/orders">← My orders</a>
+        <div className="ce-order-head">
+          <div>
+            <p className="ce-micro ce-muted">
+              Order {order.id.slice(0, 8)}… · {sourceLabel(order.source)}
+            </p>
+            <h1 className="ce-h1">{order.listing_title_snapshot}</h1>
+          </div>
+          <StatusPill status={order.status} />
         </div>
-        <StatusPill status={order.status} />
+        <p className="ce-small ce-muted">Ordered {formatDateTime(order.created_at)}</p>
       </div>
-      <p className="muted small">Ordered {formatDateTime(order.created_at)}</p>
-      <div className="co-layout">
-        <div className="co-main">
-          <section className="co-card" aria-labelledby="od-summary-heading">
+      <div className="ce-co-grid">
+        <div className="ce-co-main">
+          <section className="ce-card" aria-labelledby="od-summary-heading">
             <h2 id="od-summary-heading">Summary</h2>
-            <div className="co-item">
-              <span className="co-thumb" aria-hidden="true">
+            <div className="ce-item">
+              <span className="ce-thumb" aria-hidden="true">
                 {(order.listing_title_snapshot ?? "?").charAt(0).toUpperCase()}
               </span>
-              <div className="co-item-text">
-                <p className="co-item-title">
+              <div>
+                <p className="ce-item-title">
                   <a href={`#/listing/${order.listing_id}`}>{order.listing_title_snapshot}</a>
                 </p>
-                <p className="muted small">
+                <p className="ce-small ce-muted">
                   Buyer: {order.buyer?.display_name ?? "—"}
                   {" · "}
                   Seller: {order.seller?.display_name ?? "—"}
                 </p>
               </div>
             </div>
-            <dl className="kv co-lines">
-              <div className="co-line">
+            <dl className="ce-lines">
+              <div>
                 <dt>Subtotal</dt>
                 <dd>{formatPrice(order.subtotal_minor)}</dd>
               </div>
-              <div className="co-line">
+              <div>
                 <dt>Shipping</dt>
                 <dd>{formatPrice(order.shipping_minor)}</dd>
               </div>
             </dl>
-            <p className="co-total">
+            <p className="ce-total">
               <span>Total</span>
-              <strong>{formatPrice(order.total_minor)}</strong>
+              <strong className="ce-tnum">{formatPrice(order.total_minor)}</strong>
             </p>
             {order.paid_at && (
-              <p className="muted small">Paid {formatDateTime(order.paid_at)}</p>
+              <p className="ce-small ce-muted">Paid {formatDateTime(order.paid_at)}</p>
             )}
           </section>
 
-          <section className="co-card" aria-labelledby="od-payments-heading">
+          <section className="ce-card" aria-labelledby="od-payments-heading">
             <h2 id="od-payments-heading">Payments</h2>
-            {order.payments.length === 0 && <p className="muted">No payment attempts yet.</p>}
+            {order.payments.length === 0 && <p className="ce-small ce-muted">No payment attempts yet.</p>}
             {order.payments.map((pay) => (
-              <dl className="kv co-lines" key={pay.id}>
-                <div className="co-line">
+              <dl className="ce-lines" key={pay.id}>
+                <div>
                   <dt>Amount</dt>
                   <dd>{formatPrice(pay.amount_minor)}</dd>
                 </div>
-                <div className="co-line">
+                <div>
                   <dt>Status</dt>
                   <dd><StatusPill status={pay.status} /></dd>
                 </div>
-                <div className="co-line">
+                <div>
                   <dt>Provider</dt>
                   <dd>{pay.provider}</dd>
                 </div>
                 {pay.failure_message && (
-                  <div className="co-line">
+                  <div>
                     <dt>Failure</dt>
                     <dd>{pay.failure_message}</dd>
                   </div>
@@ -317,62 +315,66 @@ export function OrderDetailPage({ id }) {
               </dl>
             ))}
             {order.status === "PENDING_PAYMENT" || order.status === "PAYMENT_FAILED" ? (
-              <a className="btn btn-bid" href={`#/checkout/payment/${order.id}`}>
-                Continue to payment
-              </a>
+              <div>
+                <Button variant="primary" href={`#/checkout/payment/${order.id}`}>
+                  Continue to payment
+                </Button>
+              </div>
             ) : null}
           </section>
 
-          <section className="co-card" aria-labelledby="od-review-heading">
+          <section className="ce-card" aria-labelledby="od-review-heading">
             <h2 id="od-review-heading">Review</h2>
             {reviewNote ? (
-              <p className="form-ok" role="status">{reviewNote}</p>
+              <p className="ce-ok" role="status">{reviewNote}</p>
             ) : order.status === "DELIVERED" ? (
               reviewed ? (
-                <p className="muted small">You have reviewed this order.</p>
+                <p className="ce-small ce-muted">You have reviewed this order.</p>
               ) : (
-                <button type="button" className="btn btn-primary" onClick={() => setReviewOpen(true)}>
+                <Button variant="primary" onClick={() => setReviewOpen(true)}>
                   Rate &amp; Review
-                </button>
+                </Button>
               )
             ) : (
-              <p className="muted small">Reviews unlock once the order is delivered.</p>
+              <p className="ce-small ce-muted">Reviews unlock once the order is delivered.</p>
             )}
           </section>
         </div>
 
-        <div className="co-side">
-          <section className="co-card" aria-labelledby="od-address-heading">
+        <div className="ce-co-main">
+          <section className="ce-card" aria-labelledby="od-address-heading">
             <h2 id="od-address-heading">Delivery address</h2>
             {snap ? (
-              <dl className="kv co-lines">
-                <div className="co-line">
+              <dl className="ce-facts">
+                <div>
                   <dt>Recipient</dt>
                   <dd>{snap.recipient_name}</dd>
                 </div>
-                <div className="co-line">
+                <div>
                   <dt>Address</dt>
                   <dd>{[snap.line1, snap.line2].filter(Boolean).join(", ")}</dd>
                 </div>
-                <div className="co-line">
+                <div>
                   <dt>City</dt>
                   <dd>{[snap.city, snap.region].filter(Boolean).join(", ")}</dd>
                 </div>
-                <div className="co-line">
+                <div>
                   <dt>Country</dt>
                   <dd>{snap.country}</dd>
                 </div>
-                <div className="co-line">
+                <div>
                   <dt>Contact</dt>
                   <dd>{order.contact_email_normalized}</dd>
                 </div>
               </dl>
             ) : (
-              <p className="muted">No snapshot on file.</p>
+              <p className="ce-small ce-muted">No snapshot on file.</p>
             )}
-            <a className="btn btn-ghost btn-block" href={`#/listing/${order.listing_id}`}>
-              View listing
-            </a>
+            <div>
+              <Button variant="ghost" block href={`#/listing/${order.listing_id}`}>
+                View listing
+              </Button>
+            </div>
           </section>
           <OrderTimeline order={order} />
         </div>

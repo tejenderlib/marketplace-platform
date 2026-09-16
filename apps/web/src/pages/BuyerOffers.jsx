@@ -1,3 +1,8 @@
+/**
+ * Buyer offers: sent offers with status filter, CE table, detail modal.
+ * Same fetch/filter/pagination/withdraw/checkout behavior; new presentation.
+ */
+
 import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "../api/client.js";
@@ -6,6 +11,10 @@ import { myOffers } from "../api/offers.js";
 import OfferDetailModal from "../components/OfferDetailModal.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { getOffer, withdrawOffer } from "../api/offers.js";
+import Button from "../components/ui/Button.jsx";
+import DataTable from "../components/ui/DataTable.jsx";
+import Pill from "../components/ui/Pill.jsx";
+import { EmptyState, ErrorState, LoadingState } from "../components/ui/States.jsx";
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -13,6 +22,12 @@ function formatDateTime(value) {
 }
 
 const LIMIT = 20;
+const STATUSES = ["", "PENDING", "ACCEPTED", "REJECTED", "WITHDRAWN", "EXPIRED", "CANCELLED"];
+
+function statusLabel(value) {
+  if (!value) return "All";
+  return value.charAt(0) + value.slice(1).toLowerCase();
+}
 
 export default function BuyerOffersPage() {
   const { isAuthenticated, authFetch, redirectToLogin, user } = useAuth();
@@ -47,7 +62,7 @@ export default function BuyerOffersPage() {
   if (!isAuthenticated) {
     return (
       <div className="content">
-        <p className="muted">Redirecting to login…</p>
+        <p className="ce-small ce-muted">Redirecting to login…</p>
       </div>
     );
   }
@@ -56,79 +71,74 @@ export default function BuyerOffersPage() {
   const pages = Math.max(1, Math.ceil(state.total / LIMIT));
 
   return (
-    <div className="content">
-      <h1>My Offers</h1>
-      <div className="sale-filter" role="group" aria-label="Offer status filter">
-        {["", "PENDING", "ACCEPTED", "REJECTED", "WITHDRAWN", "EXPIRED", "CANCELLED"].map((value) => (
+    <div className="ce-stack">
+      <div>
+        <p className="ce-micro ce-muted">Negotiations you started</p>
+        <h1 className="ce-h1">My Offers</h1>
+      </div>
+      <div className="ce-segmented" role="group" aria-label="Offer status filter">
+        {STATUSES.map((value) => (
           <button
             key={value}
             type="button"
-            className={status === value ? "chip is-active" : "chip"}
+            className={status === value ? "ce-btn ce-btn--secondary ce-btn--sm is-active" : "ce-btn ce-btn--ghost ce-btn--sm"}
             aria-pressed={status === value}
             onClick={() => { setStatus(value); setOffset(0); }}
           >
-            {value === "" ? "All" : value}
+            {statusLabel(value)}
           </button>
         ))}
       </div>
-      {state.loading && <p className="muted" role="status">Loading offers…</p>}
-      {state.error && (
-        <div className="empty-state" role="alert">
-          <p>{state.error}</p>
-          <button type="button" className="btn btn-primary" onClick={load}>Retry</button>
-        </div>
-      )}
+      {state.loading && <LoadingState label="Loading offers…" />}
+      {state.error && <ErrorState message={state.error} onRetry={load} />}
       {!state.loading && !state.error && state.items.length === 0 && (
-        <div className="empty-state">
-          <p>No offers yet. Make an offer from any fixed-price listing.</p>
-          <a className="btn btn-primary" href="#/">Browse listings</a>
-        </div>
+        <EmptyState
+          title="No offers yet"
+          hint="Make an offer from any fixed-price listing."
+          action={<Button variant="secondary" size="sm" href="#/">Browse listings</Button>}
+        />
       )}
       {!state.error && state.items.length > 0 && (
         <>
-          <div className="table-scroll">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Listing</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.items.map((offer) => (
-                  <tr key={offer.id}>
-                    <td><a href={`#/listing/${offer.listing_id}`}>{offer.listing?.title ?? "Listing"}</a></td>
-                    <td>{formatPrice(offer.amount_minor)}</td>
-                    <td><span className={`status-pill status-${offer.status}`}>{offer.status}</span></td>
-                    <td>{formatDateTime(offer.created_at)}</td>
-                    <td>
-                      <span className="offer-actions">
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelectedId(offer.id)}>
-                          View
-                        </button>
-                        {offer.status === "ACCEPTED" && (
-                          <a className="btn btn-primary btn-sm" href={`#/checkout/offer/${offer.id}`}>
-                            Proceed to checkout
-                          </a>
-                        )}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="pagination storefront-pagination">
-            <button type="button" className="btn btn-ghost" disabled={page <= 1} onClick={() => setOffset(offset - LIMIT)}>
+          <DataTable
+            caption="My offers"
+            columns={[
+              { key: "listing", label: "Listing" },
+              { key: "amount", label: "Amount", numeric: true },
+              { key: "status", label: "Status" },
+              { key: "created", label: "Created" },
+              { key: "actions", label: "" },
+            ]}
+            rows={state.items.map((offer) => ({
+              key: offer.id,
+              listing: <a href={`#/listing/${offer.listing_id}`}>{offer.listing?.title ?? "Listing"}</a>,
+              amount: <span className="ce-tnum">{formatPrice(offer.amount_minor)}</span>,
+              status: <Pill status={offer.status}>{offer.status}</Pill>,
+              created: formatDateTime(offer.created_at),
+              actions: (
+                <span className="ce-cluster">
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedId(offer.id)}>
+                    View
+                  </Button>
+                  {offer.status === "ACCEPTED" && (
+                    <Button variant="primary" size="sm" href={`#/checkout/offer/${offer.id}`}>
+                      Proceed to checkout
+                    </Button>
+                  )}
+                </span>
+              ),
+            }))}
+          />
+          <div className="ce-pagination">
+            <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setOffset(offset - LIMIT)} aria-label="Previous page">
               ← Prev
-            </button>
-            <span>Page {page} of {pages}</span>
-            <button type="button" className="btn btn-ghost" disabled={page >= pages} onClick={() => setOffset(offset + LIMIT)}>
+            </Button>
+            <span className="ce-small ce-muted ce-tnum" aria-live="polite">
+              Page {page} of {pages}
+            </span>
+            <Button variant="ghost" size="sm" disabled={page >= pages} onClick={() => setOffset(offset + LIMIT)} aria-label="Next page">
               Next →
-            </button>
+            </Button>
           </div>
         </>
       )}

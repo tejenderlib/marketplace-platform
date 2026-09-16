@@ -1,4 +1,5 @@
-import { humanize, ticketPriorityPill, ticketStatusPill } from "../statusPills.js";
+import Pill, { pillLabel } from "../ui/Pill.jsx";
+import Button from "../ui/Button.jsx";
 import TicketContextChip from "./TicketContextChip.jsx";
 
 function formatDateTime(value) {
@@ -13,28 +14,28 @@ function formatDateTime(value) {
 export default function TicketCard({ ticket, detailBase = "/support" }) {
   const href = `#${detailBase}/${ticket.id}`;
   return (
-    <li className="order-card">
-      <div className="order-main">
-        <p className="order-title">
+    <li className="ce-ticket">
+      <div>
+        <p className="ce-item-title">
           <a href={href}>{ticket.subject}</a>
         </p>
-        <p className="muted small">
+        <p className="ce-small ce-muted">
           #{ticket.id.slice(0, 8)} · Opened {formatDateTime(ticket.created_at)}
           {" · Updated "}
           {formatDateTime(ticket.updated_at)}
         </p>
-        <p className="order-pills">
+        <p className="ce-cluster">
           <TicketContextChip ticket={ticket} />
-          <span className={ticketStatusPill(ticket.status)}>{humanize(ticket.status)}</span>
-          <span className={ticketPriorityPill(ticket.priority)}>
-            {humanize(ticket.priority)} priority
-          </span>
+          <Pill status={ticket.status}>{pillLabel(ticket.status)}</Pill>
+          <Pill status={ticket.priority}>
+            {pillLabel(ticket.priority)} priority
+          </Pill>
         </p>
       </div>
-      <div className="order-action">
-        <a className="btn btn-ghost btn-sm" href={href} aria-label={`View ticket ${ticket.subject}`}>
+      <div>
+        <Button variant="ghost" size="sm" href={href} aria-label={`View ticket ${ticket.subject}`}>
           View
-        </a>
+        </Button>
       </div>
     </li>
   );

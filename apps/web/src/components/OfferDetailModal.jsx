@@ -1,13 +1,31 @@
+/**
+ * Offer detail modal for buyer, seller, or ADMIN (backend enforces
+ * visibility). Same fetch/respond/withdraw behavior; CE presentation with
+ * a status timeline built from real timestamps only (created, expires,
+ * responded) — no invented negotiation history.
+ */
+
 import { useEffect, useState } from "react";
 
 import { formatPrice } from "../data/listings.js";
+import Button from "./ui/Button.jsx";
+import Modal from "./ui/Modal.jsx";
+import Pill from "./ui/Pill.jsx";
+import { ErrorState, LoadingState } from "./ui/States.jsx";
 
 function formatDateTime(value) {
   if (!value) return "—";
   return new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
-/** Offer detail modal for buyer, seller, or ADMIN (backend enforces visibility). */
+const TERMINAL_NOTES = {
+  ACCEPTED: "Accepted — the buyer can proceed to checkout.",
+  REJECTED: "Declined by the seller. This decision is final.",
+  WITHDRAWN: "Withdrawn by the buyer.",
+  EXPIRED: "Expired without a response.",
+  CANCELLED: "Cancelled.",
+};
+
 export default function OfferDetailModal({ offerId, currentUserId, isAdmin, api, onClose, onChanged }) {
   const [state, setState] = useState({ loading: true, error: null, offer: null });
   const [busy, setBusy] = useState(null);
@@ -51,68 +69,123 @@ export default function OfferDetailModal({ offerId, currentUserId, isAdmin, api,
   const isSeller = offer && currentUserId === offer.seller?.id;
   const canRespond = offer && offer.status === "PENDING" && (isSeller || isAdmin);
   const canWithdraw = offer && offer.status === "PENDING" && isBuyer;
+  const canCheckout = offer && offer.status === "ACCEPTED" && isBuyer;
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Offer details">
-      <div className="modal">
-        <h2>Offer details</h2>
-        {state.loading && <p className="muted" role="status">Loading offer…</p>}
-        {state.error && (
-          <p className="form-error" role="alert">
-            {state.error} <button type="button" className="btn btn-ghost btn-sm" onClick={load}>Retry</button>
-          </p>
-        )}
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        {offer && (
-          <>
-            <p>
-              <strong>{formatPrice(offer.amount_minor)}</strong>{" "}
-              <span className={`status-pill status-${offer.status}`}>{offer.status}</span>
-            </p>
-            <div className="offer-meta">
-              <span>Listing: {offer.listing?.title}</span>
-              <span>Buyer: {offer.buyer?.display_name ?? offer.buyer_id.slice(0, 8)}</span>
-              <span>Created: {formatDateTime(offer.created_at)}</span>
-              {offer.expires_at && <span>Expires: {formatDateTime(offer.expires_at)}</span>}
-              {offer.responded_at && <span>Responded: {formatDateTime(offer.responded_at)}</span>}
+    <Modal label="Offer details" onClose={onClose} dismissable={busy === null}>
+      <h2>Offer details</h2>
+      {state.loading && <LoadingState label="Loading offer…" />}
+      {state.error && <ErrorState message={state.error} onRetry={load} />}
+      {error && (
+        <p className="ce-error" role="alert">
+          {error}
+        </p>
+      )}
+      {offer && (
+        <div className="ce-offer">
+          <div className="ce-offer-amount">
+            <span className="ce-price ce-price--lg ce-tnum">
+              {formatPrice(offer.amount_minor)}
+            </span>
+            <Pill status={offer.status}>{offer.status}</Pill>
+          </div>
+
+          <ol className="ce-timeline" aria-label="Offer history">
+            <li>
+              <span className="ce-timeline-dot" aria-hidden="true" />
+              <div>
+                <p>Offer placed</p>
+                <p className="ce-small ce-muted">{formatDateTime(offer.created_at)}</p>
+              </div>
+            </li>
+            {offer.expires_at && offer.status === "PENDING" && (
+              <li>
+                <span className="ce-timeline-dot" aria-hidden="true" />
+                <div>
+                  <p>Expires</p>
+                  <p className="ce-small ce-muted">{formatDateTime(offer.expires_at)}</p>
+                </div>
+              </li>
+            )}
+            {offer.responded_at && (
+              <li>
+                <span className="ce-timeline-dot" aria-hidden="true" />
+                <div>
+                  <p>Responded</p>
+                  <p className="ce-small ce-muted">{formatDateTime(offer.responded_at)}</p>
+                </div>
+              </li>
+            )}
+            {TERMINAL_NOTES[offer.status] && (
+              <li>
+                <span className="ce-timeline-dot" aria-hidden="true" />
+                <div>
+                  <p>{TERMINAL_NOTES[offer.status]}</p>
+                </div>
+              </li>
+            )}
+          </ol>
+
+          <dl className="ce-facts">
+            <div>
+              <dt>Listing</dt>
+              <dd>
+                <a href={`#/listing/${offer.listing_id}`}>
+                  {offer.listing?.title ?? "Listing"}
+                </a>
+              </dd>
             </div>
-            {offer.message && <p>{offer.message}</p>}
-            <div className="modal-actions">
-              {canWithdraw && (
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  disabled={busy !== null}
-                  onClick={() => {
-                    if (window.confirm("Withdraw this offer?")) act("withdraw");
-                  }}
-                >
-                  {busy === "withdraw" ? "Withdrawing…" : "Withdraw"}
-                </button>
-              )}
-              {canRespond && (
-                <>
-                  <button type="button" className="btn btn-ghost" disabled={busy !== null} onClick={() => act("reject", "REJECTED")}>
-                    {busy === "reject" ? "Rejecting…" : "Reject"}
-                  </button>
-                  <button type="button" className="btn btn-primary" disabled={busy !== null} onClick={() => act("accept", "ACCEPTED")}>
-                    {busy === "accept" ? "Accepting…" : "Accept"}
-                  </button>
-                </>
-              )}
+            <div>
+              <dt>Buyer</dt>
+              <dd>{offer.buyer?.display_name ?? offer.buyer_id.slice(0, 8)}</dd>
             </div>
-          </>
-        )}
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Close
-          </button>
+            {offer.expires_at && (
+              <div>
+                <dt>Expires</dt>
+                <dd>{formatDateTime(offer.expires_at)}</dd>
+              </div>
+            )}
+          </dl>
+
+          {offer.message && (
+            <blockquote className="ce-offer-message">
+              <p>{offer.message}</p>
+            </blockquote>
+          )}
+
+          <div className="ce-modal-actions">
+            {canWithdraw && (
+              <Button
+                variant="ghost"
+                disabled={busy !== null}
+                onClick={() => {
+                  if (window.confirm("Withdraw this offer?")) act("withdraw");
+                }}
+              >
+                {busy === "withdraw" ? "Withdrawing…" : "Withdraw"}
+              </Button>
+            )}
+            {canRespond && (
+              <>
+                <Button variant="ghost" disabled={busy !== null} onClick={() => act("reject", "REJECTED")}>
+                  {busy === "reject" ? "Rejecting…" : "Reject"}
+                </Button>
+                <Button variant="primary" disabled={busy !== null} onClick={() => act("accept", "ACCEPTED")}>
+                  {busy === "accept" ? "Accepting…" : "Accept"}
+                </Button>
+              </>
+            )}
+            {canCheckout && (
+              <Button variant="primary" href={`#/checkout/offer/${offer.id}`}>
+                Proceed to checkout
+              </Button>
+            )}
+            <Button variant={canRespond || canWithdraw || canCheckout ? "ghost" : "primary"} onClick={onClose}>
+              Close
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }

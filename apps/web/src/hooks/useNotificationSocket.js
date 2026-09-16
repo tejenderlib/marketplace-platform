@@ -1,8 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 
+import { API_BASE } from "../api/client.js";
 import { getToken } from "../auth/auth.js";
 
-const WS_BASE = import.meta.env.VITE_WS_URL ?? "ws://localhost:8000/ws/notifications";
+function defaultWsUrl() {
+  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+  try {
+    const url = new URL(API_BASE);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return `${url.origin}/ws/notifications`;
+  } catch {
+    return "ws://localhost:8000/ws/notifications";
+  }
+}
+
+const WS_BASE = defaultWsUrl();
 
 /**
  * Connect a per-user notification WebSocket and invoke `onEvent` for each
@@ -15,17 +27,22 @@ const WS_BASE = import.meta.env.VITE_WS_URL ?? "ws://localhost:8000/ws/notificat
  *
  * @param {boolean} enabled  - connect only while user is authenticated
  * @param {(event: object) => void} onEvent - called for each { event, data }
- * @returns {{ connected: boolean }}
+ * @param {(info: { code: number, reason: string }) => void} onAuthError - called on 4401/4403 closes
+ * @returns {{ connected: boolean, authError: string|null }}
  */
-export function useNotificationSocket({ enabled, onEvent } = {}) {
+export function useNotificationSocket({ enabled, onEvent, onAuthError } = {}) {
   const [connected, setConnected] = useState(false);
+  const [authError, setAuthError] = useState(null);
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
+  const onAuthErrorRef = useRef(onAuthError);
+  onAuthErrorRef.current = onAuthError;
   const socketRef = useRef(null);
 
   useEffect(() => {
     if (!enabled) {
       setConnected(false);
+      setAuthError(null);
       return undefined;
     }
 
@@ -63,10 +80,15 @@ export function useNotificationSocket({ enabled, onEvent } = {}) {
         }
       });
 
-      socket.addEventListener("close", () => {
+      socket.addEventListener("close", (event) => {
         socketRef.current = null;
         if (!disposed) {
           setConnected(false);
+          if (event?.code === 4401 || event?.code === 4403) {
+            const info = { code: event.code, reason: event.reason || "Not authorized." };
+            setAuthError(info.reason);
+            onAuthErrorRef.current?.(info);
+          }
           scheduleRetry();
         }
       });
@@ -88,5 +110,5 @@ export function useNotificationSocket({ enabled, onEvent } = {}) {
     };
   }, [enabled]);
 
-  return { connected };
+  return { connected, authError };
 }

@@ -53,33 +53,31 @@ export default function ReviewsSection({ authFetch, isAuthenticated, userId, lim
   }, [authFetch, isAuthenticated, userId, limit]);
 
   if (!isAuthenticated) {
-    return <p className="muted small">Sign in to see the reviews.</p>;
+    return <p className="ce-small ce-muted">Sign in to see the reviews.</p>;
   }
   if (state.loading) {
-    return <p className="muted" role="status">Loading reviews…</p>;
+    return <p className="ce-small ce-muted" role="status">Loading reviews…</p>;
   }
   if (state.error) {
-    return <p className="form-error" role="alert">{state.error}</p>;
+    return <p className="ce-error" role="alert">{state.error}</p>;
   }
   const { summary } = state;
   if (!summary || summary.total === 0) {
     return (
-      <div className="empty-state">
-        <p>No reviews yet.</p>
-      </div>
+      <p className="ce-small ce-muted" role="status">No reviews yet.</p>
     );
   }
   const average = summary.average_rating;
   return (
-    <>
-      <div className="review-summary">
+    <div className="ce-stack">
+      <div className="ce-cluster">
         <RatingStars value={average ?? 0} />
-        <span className="muted small">
+        <span className="ce-small ce-muted">
           {average !== null ? `${average.toFixed(1)} out of 5` : "No rating yet"} ·{" "}
-          <strong>{summary.total}</strong> review{summary.total === 1 ? "" : "s"}
+          <strong className="ce-tnum">{summary.total}</strong> review{summary.total === 1 ? "" : "s"}
         </span>
       </div>
-      <ul className="review-list">
+      <ul className="ce-rows">
         {summary.items.map((review) => (
           <ReviewCard
             key={review.id}
@@ -88,6 +86,6 @@ export default function ReviewsSection({ authFetch, isAuthenticated, userId, lim
           />
         ))}
       </ul>
-    </>
+    </div>
   );
 }

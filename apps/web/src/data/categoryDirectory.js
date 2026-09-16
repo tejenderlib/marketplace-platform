@@ -151,18 +151,64 @@ function matchSub(subName, candidates) {
  * Returns: [{ key, name, targetId, links: [{ name, targetId }] }]
  * `targetId` is always a real category id or "All" — never null — so every
  * rendered control maps onto the existing selectCategory(id) contract.
+ *
+ * Customer-facing hygiene (frontend-only; backend data untouched):
+ * - KNOWN_TEST_CATEGORIES drops obvious seed/test rows that pollute the
+ *   catalogue menu (AdminCat, AuctionCat, …).
+ * - Single-token names ending in "cat" (e.g. XyzCat) and test/demo/sample
+ *   prefixed names are treated as seed data, not merchandise taxonomy.
+ * - Names are deduplicated case-insensitively (first occurrence wins).
+ * - Links per group are capped so the panel stays compact.
  */
+const KNOWN_TEST_CATEGORIES = new Set(
+  [
+    "admincat",
+    "auctioncat",
+    "checkoutcat",
+    "expvcat",
+    "modcat",
+    "noticat",
+    "offercat",
+    "ph7cat",
+    "revcat",
+    "music",
+    "photography",
+  ],
+);
+
+const MAX_LINKS_PER_GROUP = 6;
+const MAX_LINKS_INDUSTRIAL = 8;
+
+function isTestCategoryName(name) {
+  const norm = normalize(name).replace(/ /g, "");
+  if (!norm) return true;
+  if (KNOWN_TEST_CATEGORIES.has(norm)) return true;
+  if (/^(test|demo|sample|tmp)/.test(norm)) return true;
+  if (/^[a-z0-9]+cat$/.test(norm)) return true;
+  return false;
+}
+
 export function buildDirectory(apiCategories) {
-  const list = Array.isArray(apiCategories) ? apiCategories : [];
+  const list = (Array.isArray(apiCategories) ? apiCategories : []).filter(
+    (cat) => cat && !isTestCategoryName(cat.name),
+  );
+  // Deduplicate by normalized name (first occurrence wins).
+  const seen = new Set();
+  const deduped = list.filter((cat) => {
+    const norm = normalize(cat.name);
+    if (seen.has(norm)) return false;
+    seen.add(norm);
+    return true;
+  });
 
   // Path 1: the API provides a real parent/child tree — use it verbatim.
-  const byId = new Map(list.map((cat) => [String(cat.id), cat]));
-  const hasHierarchy = list.some(
+  const byId = new Map(deduped.map((cat) => [String(cat.id), cat]));
+  const hasHierarchy = deduped.some(
     (cat) => cat.parent_id != null && byId.has(String(cat.parent_id)),
   );
   if (hasHierarchy) {
     const childrenOf = new Map();
-    for (const cat of list) {
+    for (const cat of deduped) {
       if (cat.parent_id != null && byId.has(String(cat.parent_id))) {
         const key = String(cat.parent_id);
         if (!childrenOf.has(key)) childrenOf.set(key, []);
@@ -170,21 +216,23 @@ export function buildDirectory(apiCategories) {
       }
     }
     const groups = [];
-    for (const cat of list) {
+    for (const cat of deduped) {
       if (cat.parent_id != null && byId.has(String(cat.parent_id))) continue;
       const children = childrenOf.get(String(cat.id)) ?? [];
       groups.push({
         key: String(cat.id),
         name: cat.name,
         targetId: cat.id,
-        links: children.map((child) => ({ name: child.name, targetId: child.id })),
+        links: children
+          .slice(0, MAX_LINKS_PER_GROUP)
+          .map((child) => ({ name: child.name, targetId: child.id })),
       });
     }
     return groups;
   }
 
   // Path 2: flat API list — map real categories onto the curated groups.
-  const remaining = [...list];
+  const remaining = [...deduped];
   const groups = CATEGORY_PRESET.map((preset) => {
     const links = [];
     for (const subName of preset.subs) {
@@ -215,14 +263,17 @@ export function buildDirectory(apiCategories) {
       const firstReal = links.find((link) => link.targetId != null);
       targetId = firstReal ? firstReal.targetId : "All";
     }
+    const cap = preset.key === "industrial" ? MAX_LINKS_INDUSTRIAL : MAX_LINKS_PER_GROUP;
     return {
       key: preset.key,
       name: preset.name,
       targetId,
-      links: links.map((link) => ({
-        name: link.name,
-        targetId: link.targetId != null ? link.targetId : targetId,
-      })),
+      links: links
+        .map((link) => ({
+          name: link.name,
+          targetId: link.targetId != null ? link.targetId : targetId,
+        }))
+        .slice(0, cap),
     };
   });
 
@@ -230,9 +281,11 @@ export function buildDirectory(apiCategories) {
   if (remaining.length > 0) {
     groups.push({
       key: "more",
-      name: "More",
+      name: "More to explore",
       targetId: "All",
-      links: remaining.map((cat) => ({ name: cat.name, targetId: cat.id })),
+      links: remaining
+        .slice(0, MAX_LINKS_PER_GROUP)
+        .map((cat) => ({ name: cat.name, targetId: cat.id })),
     });
   }
   return groups;

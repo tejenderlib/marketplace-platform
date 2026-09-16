@@ -1,0 +1,102 @@
+/* Curated Exchange tokens. New `--ce-*` names live alongside the legacy
+   Industrial Premium `:root` vars (styles.css) so existing pages render
+   unchanged. New work consumes `--ce-*` only. See docs/curated-exchange.md. */
+
+:root {
+  /* Surfaces + text */
+  --ce-paper: #f6f4ee;
+  --ce-card: #fffdf9;
+  --ce-soft: #faf7f0;
+  --ce-well: #efebe1;
+  --ce-ink: #1a1e1c;
+  --ce-text: #232a27;
+  --ce-muted: #5d6a64;
+  --ce-border: #e3dcc9;
+  --ce-hairline: #ece5d3;
+
+  /* Brand + highlight */
+  --ce-brand: #0b3b39;
+  --ce-brand-strong: #08403c;
+  --ce-brand-ink: #072825;
+  --ce-on-brand: #f8f5ec;
+  --ce-highlight: #ffce32;
+
+  /* Status semantics */
+  --ce-success: #0c6b3f;
+  --ce-success-bg: #e6f2ea;
+  --ce-success-border: #9ed3b6;
+  --ce-warning: #b45309;
+  --ce-warning-bg: #fdf3e3;
+  --ce-warning-border: #ecd3a8;
+  --ce-danger: #b3261e;
+  --ce-danger-bg: #fdecea;
+  --ce-danger-border: #e5a49f;
+  --ce-auction: #5a2ea6;
+  --ce-auction-bg: #f4effe;
+  --ce-auction-border: #d9c8f5;
+  --ce-info: #0b3b39;
+  --ce-info-bg: #e9f0ee;
+  --ce-info-border: #bccfc9;
+  --ce-neutral-bg: #efe9da;
+  --ce-neutral-border: #ddd3ba;
+
+  /* Typography */
+  --ce-font-display: "Fraunces", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --ce-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ce-display: clamp(2.5rem, 1.6rem + 4vw, 3.5rem);
+  --ce-h1: 2rem;
+  --ce-h2: 1.375rem;
+  --ce-h3: 1.0625rem;
+  --ce-body: 0.9375rem;
+  --ce-small: 0.8125rem;
+  --ce-micro: 0.6875rem;
+
+  /* Spacing (4/8/12/16/20/24/32/48/64/96) */
+  --ce-1: 0.25rem;
+  --ce-2: 0.5rem;
+  --ce-3: 0.75rem;
+  --ce-4: 1rem;
+  --ce-5: 1.25rem;
+  --ce-6: 1.5rem;
+  --ce-8: 2rem;
+  --ce-12: 3rem;
+  --ce-16: 4rem;
+  --ce-24: 6rem;
+
+  /* Radii */
+  --ce-r-control: 0.5rem;
+  --ce-r-card: 0.75rem;
+  --ce-r-panel: 1rem;
+  --ce-r-pill: 999px;
+
+  /* Elevation (borders first, shadows subtle) */
+  --ce-shadow-card: 0 1px 2px rgb(26 30 28 / 0.06);
+  --ce-shadow-float: 0 16px 40px rgb(26 30 28 / 0.14);
+
+  /* Layout */
+  --ce-container: 76rem;
+  --ce-narrow: 44rem;
+  --ce-wide: 88rem;
+  --ce-gutter: 1rem;
+  --ce-section: 2rem;
+
+  /* Focus */
+  --ce-focus: #0b3b39;
+
+  /* Motion */
+  --ce-d1: 150ms;
+  --ce-d2: 250ms;
+  --ce-d3: 300ms;
+  --ce-ease: ease-out;
+
+  /* Layering */
+  --ce-z-sticky: 20;
+  --ce-z-overlay: 60;
+  --ce-z-toast: 80;
+
+  /* Buttons (scoped; shared control radius untouched) */
+  --ce-r-button: 0.375rem;
+  --ce-btn-shadow: 0 1px 2px rgb(26 30 28 / 0.08);
+  --ce-btn-inset: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  --ce-btn-press: inset 0 1px 2px rgb(0 0 0 / 0.18);
+}

@@ -1,11 +1,11 @@
 import { formatTime } from "./format.js";
 
-/** Single chat bubble with sender hierarchy + readable timestamp. */
+/** Single chat bubble with readable timestamp (never time-only context). */
 export default function MessageBubble({ message, mine }) {
   return (
-    <div className={mine ? "bubble mine" : "bubble theirs"}>
+    <div className={mine ? "ce-bubble mine" : "ce-bubble"}>
       <p>{message.body}</p>
-      <span className="muted small">{formatTime(message.created_at)}</span>
+      <time dateTime={message.created_at}>{formatTime(message.created_at)}</time>
     </div>
   );
 }

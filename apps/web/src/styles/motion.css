@@ -1,0 +1,17 @@
+/* CE motion foundations. Durations consumed by all primitives. */
+
+.ce-transition {
+  transition-duration: var(--ce-d2);
+  transition-timing-function: var(--ce-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ce-scope *,
+  .ce-scope *::before,
+  .ce-scope *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

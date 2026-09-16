@@ -9,9 +9,11 @@ export default function TicketContextCard({ ticket }) {
   const context = parseTicketContext(ticket);
   if (!context) return null;
   return (
-    <div className="ticket-context-card" aria-label="Related item">
-      <span className="pill">{context.kind}</span>
-      {context.rest && <strong>{context.rest}</strong>}
+    <div className="ce-card ce-card--pad-sm" aria-label="Related item">
+      <p className="ce-cluster">
+        <span className="ce-pill">{context.kind}</span>
+        {context.rest && <strong>{context.rest}</strong>}
+      </p>
     </div>
   );
 }

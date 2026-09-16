@@ -1,5 +1,6 @@
 import { formatPrice } from "../../data/listings.js";
-import ListingCard from "../ListingCard.jsx";
+import ListingCard from "../marketplace/ListingCard.jsx";
+import Button from "../ui/Button.jsx";
 import { conditionLabel, toMinor } from "./shared.js";
 
 function money(rupees) {
@@ -41,13 +42,13 @@ export default function PreviewStep({
   };
 
   return (
-    <div className="sell-stepbody">
-      <div className="sell-preview-grid">
-        <div className="sell-preview-card">
-          <ListingCard listing={previewListing} isFavorite={false} onToggleFavorite={() => {}} interactive={false} />
-          <p className="form-help">Card preview — how buyers will see it in results.</p>
+    <div className="ce-form">
+      <div className="ce-preview-grid">
+        <div>
+          <ListingCard listing={previewListing} isFavorite={false} onToggleFavorite={() => {}} preview />
+          <p className="ce-hint">Card preview — how buyers will see it in results.</p>
         </div>
-        <dl className="sell-summary">
+        <dl className="ce-facts">
           <div>
             <dt>Title</dt>
             <dd>{form.title.trim() || "—"}</dd>
@@ -107,25 +108,25 @@ export default function PreviewStep({
       </div>
 
       {submitState?.error && (
-        <p className="form-error" role="alert">
+        <p className="ce-error" role="alert">
           {submitState.error}
         </p>
       )}
       {submitState?.ok && (
-        <p className="form-ok" role="status">
+        <p className="ce-ok" role="status">
           {submitState.ok}
         </p>
       )}
 
-      <div className="sell-actions">
-        <button type="button" className="btn btn-ghost" disabled={busy} onClick={onSave}>
+      <div className="ce-sell-actions">
+        <Button variant="ghost" disabled={busy} onClick={onSave}>
           {busy ? "Saving…" : "Save Draft"}
-        </button>
-        <button type="button" className="btn btn-sell" disabled={busy} onClick={onSubmit}>
+        </Button>
+        <Button variant="primary" disabled={busy} onClick={onSubmit}>
           {busy ? "Publishing…" : "Publish Listing"}
-        </button>
+        </Button>
       </div>
-      <p className="form-help">
+      <p className="ce-hint">
         Publishing makes the listing live immediately — buyers can see and purchase it right away.
       </p>
     </div>

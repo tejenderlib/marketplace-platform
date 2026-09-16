@@ -240,7 +240,8 @@ reads:   public on seller profile, GET /reviews/me (author),
 ## Notifications
 
 In-app bell fed by domain events, pushed live over WebSocket
-(`/api/v1/ws`, auth via token query param). Types (enum): OFFER_RECEIVED,
+(`/api/v1/ws`, first-frame `{"type":"auth"}` handshake with 10 s timeout;
+4401/4403 policy closes, no token in URLs/logs). Types (enum): OFFER_RECEIVED,
 OFFER_ACCEPTED, ORDER_PLACED, PAYMENT_SUCCEEDED, ORDER_SHIPPED,
 ORDER_DELIVERED, AUCTION_WON, AUCTION_ENDED, OUTBID, REVIEW_RECEIVED,
 LISTING_REMOVED, LISTING_RESTORED (plus legacy LISTING_APPROVED /

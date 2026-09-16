@@ -1,6 +1,8 @@
 import { useState } from "react";
 
 import { IMAGE_TYPES, MAX_IMAGE_BYTES } from "./shared.js";
+import Button from "../ui/Button.jsx";
+import { EmptyState, Notice } from "../ui/States.jsx";
 
 const EMPTY_REF = {
   storage_key: "",
@@ -14,7 +16,7 @@ const EMPTY_REF = {
 /**
  * Step 3: image REFERENCE management against the real metadata-only API.
  * V1 accepts no file bytes, so this UI registers storage references
- * honestly (and says so) instead of faking an upload.
+ * honestly (and says so) instead of faking an upload. Logic unchanged.
  */
 export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd, onUpdate, onDelete }) {
   const [ref, setRef] = useState(EMPTY_REF);
@@ -51,13 +53,16 @@ export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd
 
   if (!draftId) {
     return (
-      <div className="sell-stepbody">
-        <div className="empty-state">
-          <p>Image references attach to a saved draft. Save your draft first, then add images.</p>
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={onEnsureDraft}>
-            {busy ? "Saving…" : "Save Draft"}
-          </button>
-        </div>
+      <div className="ce-form">
+        <EmptyState
+          title="Save your draft first"
+          hint="Image references attach to a saved draft."
+          action={
+            <Button variant="primary" disabled={busy} onClick={onEnsureDraft}>
+              {busy ? "Saving…" : "Save Draft"}
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -82,79 +87,79 @@ export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd
   }
 
   return (
-    <div className="sell-stepbody">
-      <p className="form-help">
+    <div className="ce-form">
+      <Notice tone="warning">
         Reference images already stored under your object-store key. File upload is not part of
         the V1 API — nothing here uploads bytes.
-      </p>
+      </Notice>
 
       {images.length === 0 ? (
-        <p className="muted">No images yet. Listings with photos sell faster.</p>
+        <p className="ce-small ce-muted">No images yet. Listings with photos sell faster.</p>
       ) : (
-        <ul className="sell-images">
+        <ul className="ce-image-list">
           {[...images]
             .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
             .map((image, index, ordered) => (
-              <li key={image.id} className="sell-image">
-                <div className="sell-image-main">
-                  <span className="sell-image-key">{image.storage_key}</span>
-                  <span className="muted small">
+              <li key={image.id} className="ce-image-item">
+                <div>
+                  <p className="ce-image-key">{image.storage_key}</p>
+                  <p className="ce-small ce-muted">
                     {image.content_type} · {Number(image.byte_size).toLocaleString("en-IN")} bytes
                     {image.alt_text ? ` · “${image.alt_text}”` : ""}
-                  </span>
-                  <span>
-                    {image.is_primary ? (
-                      <span className="pill pill-active">Primary</span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="link-like"
-                        disabled={busy}
-                        onClick={() => onUpdate(image.id, { is_primary: true })}
-                      >
-                        Set primary
-                      </button>
-                    )}
-                  </span>
+                  </p>
                 </div>
-                <div className="sell-image-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
+                <span>
+                  {image.is_primary ? (
+                    <span className="ce-pill ce-pill--success">Primary</span>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => onUpdate(image.id, { is_primary: true })}
+                    >
+                      Set primary
+                    </Button>
+                  )}
+                </span>
+                <div className="ce-image-actions">
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     disabled={busy || index === 0}
                     onClick={() => move(image, -1)}
                     aria-label={`Move ${image.storage_key} earlier`}
                   >
                     ↑
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     disabled={busy || index === ordered.length - 1}
                     onClick={() => move(image, 1)}
                     aria-label={`Move ${image.storage_key} later`}
                   >
                     ↓
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm btn-report"
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
                     disabled={busy}
                     onClick={() => onDelete(image.id)}
                   >
                     Remove
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}
         </ul>
       )}
 
-      <form className="sell-addref" onSubmit={handleAdd}>
-        <h3>Add image reference</h3>
-        <label className="field">
+      <form onSubmit={handleAdd} className="ce-form">
+        <h3 className="ce-h3">Add image reference</h3>
+        <label className="ce-field">
           <span>
-            Storage key <span className="req" aria-hidden="true">*</span>
+            Storage key <span aria-hidden="true">*</span>
           </span>
           <input
             type="text"
@@ -164,8 +169,8 @@ export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd
             placeholder="e.g. listings/abc123/photo-1.jpg"
           />
         </label>
-        <div className="sell-row">
-          <label className="field">
+        <div className="ce-form-row">
+          <label className="ce-field">
             <span>Content type</span>
             <select value={ref.content_type} onChange={(event) => set("content_type", event.target.value)}>
               {IMAGE_TYPES.map((type) => (
@@ -175,9 +180,9 @@ export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd
               ))}
             </select>
           </label>
-          <label className="field">
+          <label className="ce-field">
             <span>
-              Size (bytes) <span className="req" aria-hidden="true">*</span>
+              Size (bytes) <span aria-hidden="true">*</span>
             </span>
             <input
               type="number"
@@ -189,8 +194,8 @@ export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd
             />
           </label>
         </div>
-        <div className="sell-row">
-          <label className="field">
+        <div className="ce-form-row">
+          <label className="ce-field">
             <span>Width (px) (optional)</span>
             <input
               type="number"
@@ -199,7 +204,7 @@ export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd
               onChange={(event) => set("width", event.target.value)}
             />
           </label>
-          <label className="field">
+          <label className="ce-field">
             <span>Height (px) (optional)</span>
             <input
               type="number"
@@ -209,7 +214,7 @@ export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd
             />
           </label>
         </div>
-        <label className="field">
+        <label className="ce-field">
           <span>Alt text (optional)</span>
           <input
             type="text"
@@ -220,13 +225,15 @@ export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd
           />
         </label>
         {localError && (
-          <p className="form-error" role="alert">
+          <p className="ce-error" role="alert">
             {localError}
           </p>
         )}
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? "Adding…" : "Add Reference"}
-        </button>
+        <div>
+          <Button variant="primary" type="submit" disabled={busy}>
+            {busy ? "Adding…" : "Add Reference"}
+          </Button>
+        </div>
       </form>
     </div>
   );

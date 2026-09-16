@@ -1,0 +1,60 @@
+/* CE layout: containers, sections, grids, stacks. New breakpoints
+   1024px / 640px (plain CSS cannot consume vars in media queries). */
+
+.ce-container {
+  width: 100%;
+  max-width: var(--ce-container);
+  margin-inline: auto;
+  padding-inline: var(--ce-gutter);
+}
+
+.ce-container--narrow {
+  max-width: var(--ce-narrow);
+}
+
+.ce-container--wide {
+  max-width: var(--ce-wide);
+}
+
+.ce-section {
+  padding-block: var(--ce-section);
+}
+
+.ce-section + .ce-section {
+  border-top: 1px solid var(--ce-hairline);
+}
+
+.ce-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: var(--ce-6);
+}
+
+.ce-stack {
+  display: grid;
+  gap: var(--ce-4);
+}
+
+.ce-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ce-3);
+}
+
+@media (max-width: 1024px) {
+  .ce-grid {
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: var(--ce-4);
+  }
+}
+
+@media (max-width: 640px) {
+  .ce-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--ce-3);
+  }
+  .ce-section {
+    padding-block: var(--ce-6);
+  }
+}

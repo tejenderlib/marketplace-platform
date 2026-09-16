@@ -2,8 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ApiError, apiFetch } from "../../api/client.js";
 import { getToken } from "../../auth/auth.js";
+import Button from "../../components/ui/Button.jsx";
+import Pill from "../../components/ui/Pill.jsx";
+import { EmptyState as CEEmpty, ErrorState as CEError, LoadingState as CELoading } from "../../components/ui/States.jsx";
 
-/** Fetch helper with loading/error/empty handling for admin pages. */
+/** Fetch helper with loading/error/empty handling for admin pages. Logic unchanged. */
 export function useAdminData(path, query = {}) {
   const [state, setState] = useState({ loading: true, error: null, data: null });
 
@@ -38,39 +41,22 @@ export function useAdminData(path, query = {}) {
 }
 
 export function Loading({ label = "Loading…" }) {
-  return (
-    <div className="admin-state" role="status">
-      <p>{label}</p>
-    </div>
-  );
+  return <CELoading label={label} />;
 }
 
 export function ErrorState({ message, onRetry }) {
-  return (
-    <div className="admin-state admin-error" role="alert">
-      <p>{message}</p>
-      {onRetry && (
-        <button type="button" className="btn btn-primary" onClick={onRetry}>
-          Retry
-        </button>
-      )}
-    </div>
-  );
+  return <CEError message={message} onRetry={onRetry} />;
 }
 
 export function EmptyState({ message = "Nothing here yet." }) {
-  return (
-    <div className="admin-state">
-      <p>{message}</p>
-    </div>
-  );
+  return <CEEmpty title={message} />;
 }
 
 export function StatCard({ label, value }) {
   return (
-    <div className="stat-card">
-      <p className="stat-value">{value}</p>
-      <p className="stat-label">{label}</p>
+    <div className="ce-card ce-card--pad-sm">
+      <p className="ce-price ce-tnum">{value}</p>
+      <p className="ce-small ce-muted">{label}</p>
     </div>
   );
 }
@@ -79,26 +65,28 @@ export function Pagination({ total, limit, offset, onChange }) {
   const page = Math.floor(offset / limit) + 1;
   const pages = Math.max(1, Math.ceil(total / limit));
   return (
-    <div className="pagination">
-      <button
-        type="button"
-        className="btn btn-ghost"
+    <div className="ce-pagination">
+      <Button
+        variant="ghost"
+        size="sm"
         disabled={offset === 0}
         onClick={() => onChange(Math.max(0, offset - limit))}
+        aria-label="Previous page"
       >
         ← Prev
-      </button>
-      <span>
+      </Button>
+      <span className="ce-small ce-muted ce-tnum" aria-live="polite">
         Page {page} of {pages} · {total} total
       </span>
-      <button
-        type="button"
-        className="btn btn-ghost"
+      <Button
+        variant="ghost"
+        size="sm"
         disabled={offset + limit >= total}
         onClick={() => onChange(offset + limit)}
+        aria-label="Next page"
       >
         Next →
-      </button>
+      </Button>
     </div>
   );
 }
@@ -106,7 +94,7 @@ export function Pagination({ total, limit, offset, onChange }) {
 export function FilterBar({ children, onSubmit }) {
   return (
     <form
-      className="filter-bar"
+      className="ce-filter-bar"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit?.();
@@ -119,7 +107,7 @@ export function FilterBar({ children, onSubmit }) {
 
 export function FilterSelect({ label, value, onChange, options, allLabel = "All" }) {
   return (
-    <label className="filter-field">
+    <label className="ce-field">
       <span>{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">{allLabel}</option>
@@ -135,7 +123,7 @@ export function FilterSelect({ label, value, onChange, options, allLabel = "All"
 
 export function FilterSearch({ label, value, onChange, placeholder }) {
   return (
-    <label className="filter-field filter-search">
+    <label className="ce-field">
       <span>{label}</span>
       <input
         type="search"
@@ -155,56 +143,9 @@ export function formatDateTime(value) {
   });
 }
 
-/** Shared status/priority → pill mapping (display only; values untouched). */
-export function statusPillClass(value) {
-  switch (value) {
-    case "ACTIVE":
-    case "LIVE":
-    case "PAID":
-    case "DELIVERED":
-    case "SETTLED":
-    case "PAYMENT_COMPLETED":
-    case "RESOLVED":
-      return "pill pill-active";
-    case "PENDING_REVIEW":
-    case "PENDING_PAYMENT":
-    case "AWAITING_CHECKOUT":
-    case "OPEN":
-    case "IN_PROGRESS":
-    case "UNDER_REVIEW":
-    case "SCHEDULED":
-    case "PENDING_VERIFICATION":
-      return "pill pill-ending";
-    case "PROCESSING":
-    case "READY_FOR_DELIVERY":
-    case "SHIPPED":
-    case "RESERVED":
-    case "SOLD":
-    case "ORDER_CREATED":
-    case "WAITING_FOR_CUSTOMER":
-      return "pill pill-sold";
-    case "PAYMENT_FAILED":
-    case "PAYMENT_EXPIRED":
-    case "CANCELLED":
-    case "REJECTED":
-    case "REMOVED":
-    case "EXPIRED":
-    case "SUSPENDED":
-    case "HIGH":
-    case "URGENT":
-      return "pill pill-cancelled";
-    default:
-      return "pill";
-  }
-}
-
-/** Status pill with readable text (never color-only). */
+/** Status pill with readable text (never color-only). Raw value shown. */
 export function StatusPill({ value }) {
-  return (
-    <span className={statusPillClass(value)} title={`Status: ${value ?? "—"}`}>
-      {value ?? "—"}
-    </span>
-  );
+  return <Pill status={value}>{value ?? "—"}</Pill>;
 }
 
 /** Map admin-action failures to UI handling: session / denied / conflict / error. */
@@ -228,14 +169,14 @@ export function ActionFeedback({ feedback, onDismiss }) {
   if (!feedback) return null;
   return (
     <div
-      className={feedback.kind === "ok" ? "notice-ok" : "notice-err"}
+      className={feedback.kind === "ok" ? "ce-notice" : "ce-notice ce-notice--error"}
       role={feedback.kind === "ok" ? "status" : "alert"}
     >
       <span>{feedback.message}</span>
       {feedback.kind === "session" ? (
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
+        <Button
+          variant="primary"
+          size="sm"
           onClick={() => {
             import("../../auth/auth.js").then(({ clearToken }) => {
               clearToken();
@@ -244,9 +185,9 @@ export function ActionFeedback({ feedback, onDismiss }) {
           }}
         >
           Sign in again
-        </button>
+        </Button>
       ) : (
-        <button type="button" className="notice-close" onClick={onDismiss} aria-label="Dismiss">
+        <button type="button" className="ce-btn ce-btn--ghost ce-btn--sm" onClick={onDismiss} aria-label="Dismiss">
           ✕
         </button>
       )}

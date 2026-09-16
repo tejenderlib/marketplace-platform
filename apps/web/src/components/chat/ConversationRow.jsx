@@ -10,20 +10,20 @@ export default function ConversationRow({ conv, active, onOpen }) {
   return (
     <button
       type="button"
-      className={active ? "conversation-item is-active" : "conversation-item"}
+      className={active ? "ce-conv is-active" : "ce-conv"}
       onClick={() => onOpen(conv)}
       aria-current={active ? "true" : undefined}
       aria-label={`Conversation with ${conv.recipientName} about ${conv.listingTitle}`}
     >
-      <span className="conversation-avatar" aria-hidden="true">
+      <span className="ce-avatar" aria-hidden="true">
         {initial}
       </span>
-      <span className="conversation-text">
-        <span className="conversation-top">
-          <span className="conversation-name">{conv.recipientName}</span>
-          <span className="muted small">{formatWhen(conv.updated_at)}</span>
+      <span>
+        <span className="ce-cluster">
+          <strong>{conv.recipientName}</strong>
+          <span className="ce-small ce-muted">{formatWhen(conv.updated_at)}</span>
         </span>
-        <span className="conversation-subject">{conv.listingTitle}</span>
+        <span className="ce-small ce-muted">{conv.listingTitle}</span>
       </span>
     </button>
   );

@@ -4,6 +4,9 @@ import { ApiError } from "../api/client.js";
 import { listNotifications, markRead } from "../api/notifications.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { dayGroup } from "../components/chat/format.js";
+import Button from "../components/ui/Button.jsx";
+import Pill from "../components/ui/Pill.jsx";
+import { EmptyState, ErrorState, LoadingState } from "../components/ui/States.jsx";
 
 const LIMIT = 20;
 
@@ -17,6 +20,10 @@ function linkTarget(link) {
   if (link.startsWith("#/")) return link;
   if (link.startsWith("/")) return `#${link}`;
   return null;
+}
+
+function typeLabel(type) {
+  return String(type ?? "").replaceAll("_", " ");
 }
 
 export default function NotificationsPage() {
@@ -60,31 +67,28 @@ export default function NotificationsPage() {
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="content">
-        <p className="muted">Redirecting to login…</p>
-      </div>
-    );
+    return <p className="ce-small ce-muted">Redirecting to login…</p>;
   }
 
   const page = Math.floor(offset / LIMIT) + 1;
   const pages = Math.max(1, Math.ceil(state.total / LIMIT));
 
   return (
-    <div className="content">
-      <h1>Notifications</h1>
-      {state.loading && <p className="muted" role="status">Loading…</p>}
+    <div className="ce-stack">
+      <div>
+        <p className="ce-micro ce-muted">Activity</p>
+        <h1 className="ce-h1">Notifications</h1>
+      </div>
+      {state.loading && <LoadingState label="Loading notifications…" />}
       {!state.loading && state.error && (
-        <div className="empty-state" role="alert">
-          <p>{state.error}</p>
-          <button type="button" className="btn btn-primary" onClick={load}>Retry</button>
-        </div>
+        <ErrorState message={state.error} onRetry={load} />
       )}
       {!state.loading && !state.error && state.items.length === 0 && (
-        <div className="empty-state">
-          <p>No notifications yet.</p>
-          <a className="btn btn-primary" href="#/">Browse listings</a>
-        </div>
+        <EmptyState
+          title="No notifications yet"
+          hint="Bids, offers, orders, and moderation updates land here."
+          action={<Button variant="secondary" size="sm" href="#/">Browse listings</Button>}
+        />
       )}
       {state.items.length > 0 && (
         <>
@@ -93,40 +97,42 @@ export default function NotificationsPage() {
             if (rows.length === 0) return null;
             return (
               <section key={group} aria-label={`Notifications from ${group.toLowerCase()}`}>
-                <h2 className="notification-group-heading">{group}</h2>
-                <ul className="notification-page-list">
+                <h2 className="ce-h3">{group}</h2>
+                <ul className="ce-rows">
                   {rows.map((item) => {
                     const href = linkTarget(item.link);
                     return (
-                      <li
-                        key={item.id}
-                        className={item.is_read ? "notification-row is-read" : "notification-row is-unread"}
-                      >
-                        <span className="notification-dot" aria-hidden="true" />
-                        <div className="notification-row-main">
-                          <div className="notification-top">
-                            <span className="notification-type pill">{item.type.replaceAll("_", " ")}</span>
-                            <div className="notification-row-actions">
-                              {!item.is_read && (
-                                <button
-                                  type="button"
-                                  className="btn btn-ghost btn-sm"
-                                  onClick={() => handleRead(item)}
-                                  disabled={busyId === item.id}
-                                  aria-label={`Mark "${item.title}" as read`}
-                                >
-                                  Mark read
-                                </button>
-                              )}
-                              {href && (
-                                <a className="btn btn-primary btn-sm" href={href}>View</a>
-                              )}
-                            </div>
-                          </div>
-                          <strong>{item.title}</strong>
-                          {item.body && <p className="muted small">{item.body}</p>}
-                          <span className="muted small">{formatDateTime(item.created_at)}</span>
+                      <li key={item.id}>
+                        <span className="ce-avatar" aria-hidden="true">
+                          {item.is_read ? "·" : "●"}
+                        </span>
+                        <div>
+                          <p className="ce-cluster">
+                            <Pill status={item.is_read ? "READ" : "PENDING"}>
+                              {item.is_read ? "Read" : "Unread"}
+                            </Pill>
+                            <span className="ce-small ce-muted">{typeLabel(item.type)}</span>
+                          </p>
+                          <p><strong>{item.title}</strong></p>
+                          {item.body && <p className="ce-small ce-muted">{item.body}</p>}
+                          <p className="ce-small ce-muted">{formatDateTime(item.created_at)}</p>
                         </div>
+                        <span className="ce-cluster">
+                          {!item.is_read && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRead(item)}
+                              disabled={busyId === item.id}
+                              aria-label={`Mark "${item.title}" as read`}
+                            >
+                              Mark read
+                            </Button>
+                          )}
+                          {href && (
+                            <Button variant="secondary" size="sm" href={href}>View</Button>
+                          )}
+                        </span>
                       </li>
                     );
                   })}
@@ -134,14 +140,14 @@ export default function NotificationsPage() {
               </section>
             );
           })}
-          <div className="pagination storefront-pagination">
-            <button type="button" className="btn btn-ghost" disabled={page <= 1} onClick={() => setOffset(offset - LIMIT)}>
+          <div className="ce-pagination">
+            <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setOffset(offset - LIMIT)} aria-label="Previous page">
               ← Prev
-            </button>
-            <span>Page {page} of {pages}</span>
-            <button type="button" className="btn btn-ghost" disabled={page >= pages} onClick={() => setOffset(offset + LIMIT)}>
+            </Button>
+            <span className="ce-small ce-muted ce-tnum" aria-live="polite">Page {page} of {pages}</span>
+            <Button variant="ghost" size="sm" disabled={page >= pages} onClick={() => setOffset(offset + LIMIT)} aria-label="Next page">
               Next →
-            </button>
+            </Button>
           </div>
         </>
       )}

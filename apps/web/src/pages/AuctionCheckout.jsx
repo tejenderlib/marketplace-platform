@@ -9,6 +9,8 @@ import AddressPicker from "../components/checkout/AddressPicker.jsx";
 import CheckoutSteps from "../components/checkout/CheckoutSteps.jsx";
 import CheckoutSummary from "../components/checkout/CheckoutSummary.jsx";
 import StatusPill from "../components/checkout/StatusPill.jsx";
+import Button from "../components/ui/Button.jsx";
+import { ErrorState, LoadingState } from "../components/ui/States.jsx";
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -122,8 +124,8 @@ export default function AuctionCheckoutPage({ resultId }) {
 
   if (!isAuthenticated) {
     return (
-      <div className="content">
-        <p className="muted">Redirecting to login…</p>
+      <div className="ce-stack">
+        <p className="ce-small ce-muted">Redirecting to login…</p>
       </div>
     );
   }
@@ -201,64 +203,72 @@ export default function AuctionCheckoutPage({ resultId }) {
   const shipping = 0;
 
   return (
-    <div className="content co-page">
-      <a className="back-link" href="#/">← Back</a>
-      <CheckoutSteps steps={STEPS} current={0} />
-      <h1>Auction Winner Checkout</h1>
-      {resultState.loading && <p className="muted" role="status">Loading checkout…</p>}
-      {resultState.error && (
-        <div className="empty-state" role="alert">
-          <p>{resultState.error}</p>
-          <a className="btn btn-primary" href="#/">Back to marketplace</a>
+    <div className="ce-scope">
+      <div className="ce-container ce-stack">
+        <div>
+          <a className="ce-back" href="#/">
+            ← Back
+          </a>
+          <CheckoutSteps steps={STEPS} current={0} />
+          <p className="ce-micro ce-muted">Auction won</p>
+          <h1 className="ce-h1">Winner Checkout</h1>
         </div>
-      )}
-      {result && (
-        <form onSubmit={submit} className="co-layout">
-          <div className="co-main">
-            <section className="co-card" aria-labelledby="co-win-heading">
-              <h2 id="co-win-heading">Winning bid</h2>
-              <div className="co-item">
-                <span className="co-thumb" aria-hidden="true">
-                  {(listing?.title ?? "A").charAt(0).toUpperCase()}
-                </span>
-                <div className="co-item-text">
-                  <p className="co-item-title">{listing?.title ?? "…"}</p>
-                  <p className="muted small">
-                    Won from {listing?.seller?.display_name ?? "Seller"}
-                  </p>
+        {resultState.loading && <LoadingState label="Loading checkout…" />}
+        {resultState.error && (
+          <>
+            <ErrorState message={resultState.error} />
+            <div>
+              <Button variant="secondary" size="sm" href="#/">Back to marketplace</Button>
+            </div>
+          </>
+        )}
+        {result && (
+          <form onSubmit={submit} className="ce-co-grid">
+            <div className="ce-co-main">
+              <section className="ce-card" aria-labelledby="co-win-heading">
+                <h2 id="co-win-heading">Winning bid</h2>
+                <div className="ce-item">
+                  <span className="ce-thumb" aria-hidden="true">
+                    {(listing?.title ?? "A").charAt(0).toUpperCase()}
+                  </span>
+                  <div>
+                    <p className="ce-item-title">{listing?.title ?? "…"}</p>
+                    <p className="ce-small ce-muted">
+                      Won from {listing?.seller?.display_name ?? "Seller"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <p className="co-offer-price">
-                <span>Winning bid</span>
-                <strong>{formatPrice(subtotal)}</strong>
-              </p>
-              {result.checkout_expires_at && result.status === "AWAITING_CHECKOUT" && (
-                <p className={expired ? "form-error" : "muted"} role={expired ? "alert" : undefined}>
-                  Checkout until {formatDateTime(result.checkout_expires_at)}
-                  {" · "}
-                  {expired ? "expired" : countdownText(result.checkout_expires_at)}
+                <p className="ce-summary-price">
+                  <span>Winning bid</span>
+                  <strong className="ce-tnum">{formatPrice(subtotal)}</strong>
                 </p>
-              )}
-              {existingOrderId && (
-                <p className="form-ok" role="status">
-                  An order already exists for this win.{" "}
-                  <a href={`#/checkout/payment/${existingOrderId}`}>Continue to payment</a>
-                </p>
-              )}
-              <label className="field">
-                <span>
-                  Contact email <span className="req" aria-hidden="true">*</span>
-                </span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
-              </label>
-            </section>
-            <AddressPicker
+                {result.checkout_expires_at && result.status === "AWAITING_CHECKOUT" && (
+                  <p className={expired ? "ce-error" : "ce-small ce-muted"} role={expired ? "alert" : undefined}>
+                    Checkout until {formatDateTime(result.checkout_expires_at)}
+                    {" · "}
+                    {expired ? "expired" : countdownText(result.checkout_expires_at)}
+                  </p>
+                )}
+                {existingOrderId && (
+                  <p className="ce-ok" role="status">
+                    An order already exists for this win.{" "}
+                    <a href={`#/checkout/payment/${existingOrderId}`}>Continue to payment</a>
+                  </p>
+                )}
+                <label className="ce-field">
+                  <span>
+                    Contact email <span aria-hidden="true">*</span>
+                  </span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                </label>
+              </section>
+              <AddressPicker
               addresses={addresses}
               addressId={addressId}
               onSelect={setAddressId}
@@ -288,6 +298,7 @@ export default function AuctionCheckoutPage({ resultId }) {
           />
         </form>
       )}
+      </div>
     </div>
   );
 }

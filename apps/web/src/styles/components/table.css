@@ -1,0 +1,61 @@
+/* CE tables: promoted from .admin-table. Sticky header, tabular numerals. */
+
+.ce-table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--ce-hairline);
+  border-radius: var(--ce-r-card);
+  background: var(--ce-card);
+}
+
+.ce-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ce-small);
+}
+
+.ce-table th,
+.ce-table td {
+  text-align: left;
+  padding: var(--ce-3) var(--ce-4);
+  border-bottom: 1px solid var(--ce-hairline);
+  vertical-align: top;
+}
+
+.ce-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--ce-soft);
+  font-size: var(--ce-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ce-muted);
+  white-space: nowrap;
+}
+
+.ce-table tbody tr:last-child th,
+.ce-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ce-table tbody tr:hover {
+  background: var(--ce-soft);
+}
+
+.ce-table .ce-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ce-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ce-3);
+  align-items: flex-end;
+}
+
+.ce-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--ce-3);
+}

@@ -8,6 +8,7 @@ import { useAuth } from "../auth/AuthContext.jsx";
 import AddressPicker from "../components/checkout/AddressPicker.jsx";
 import CheckoutSteps from "../components/checkout/CheckoutSteps.jsx";
 import CheckoutSummary from "../components/checkout/CheckoutSummary.jsx";
+import { ErrorState, LoadingState } from "../components/ui/States.jsx";
 
 const STEPS = ["Details", "Address", "Review"];
 
@@ -68,8 +69,8 @@ export default function CheckoutPage({ listingId }) {
 
   if (!isAuthenticated) {
     return (
-      <div className="content">
-        <p className="muted">Redirecting to login…</p>
+      <div className="ce-stack">
+        <p className="ce-small ce-muted">Redirecting to login…</p>
       </div>
     );
   }
@@ -131,51 +132,52 @@ export default function CheckoutPage({ listingId }) {
   const selectedAddress = addresses.items.find((a) => a.id === addressId);
 
   return (
-    <div className="content co-page">
-      <a className="back-link" href={listing ? `#/listing/${listing.id}` : "#/"}>
-        ← Back
-      </a>
-      <CheckoutSteps steps={STEPS} current={0} />
-      <h1>Checkout</h1>
-      {listingState.loading && <p className="muted" role="status">Loading listing…</p>}
-      {listingState.error && (
-        <div className="empty-state" role="alert">
-          <p>{listingState.error}</p>
-          <button type="button" className="btn btn-primary" onClick={loadListing}>Retry</button>
+    <div className="ce-scope">
+      <div className="ce-container ce-stack">
+        <div>
+          <a className="ce-back" href={listing ? `#/listing/${listing.id}` : "#/"}>
+            ← Back
+          </a>
+          <CheckoutSteps steps={STEPS} current={0} />
+          <p className="ce-micro ce-muted">Fixed-price purchase</p>
+          <h1 className="ce-h1">Checkout</h1>
         </div>
-      )}
-      {listing && (
-        <form onSubmit={submit} className="co-layout">
-          <div className="co-main">
-            <section className="co-card" aria-labelledby="co-item-heading">
-              <h2 id="co-item-heading">Item</h2>
-              <div className="co-item">
-                <span className="co-thumb" aria-hidden="true">
-                  {listing.title.charAt(0).toUpperCase()}
-                </span>
-                <div className="co-item-text">
-                  <p className="co-item-title">{listing.title}</p>
-                  <p className="muted small">
-                    {listing.seller?.display_name ?? "Seller"}
-                    {" · "}
-                    {[listing.city, listing.region].filter(Boolean).join(", ")}
-                  </p>
+        {listingState.loading && <LoadingState label="Loading listing…" />}
+        {listingState.error && (
+          <ErrorState message={listingState.error} onRetry={loadListing} />
+        )}
+        {listing && (
+          <form onSubmit={submit} className="ce-co-grid">
+            <div className="ce-co-main">
+              <section className="ce-card" aria-labelledby="co-item-heading">
+                <h2 id="co-item-heading">Item</h2>
+                <div className="ce-item">
+                  <span className="ce-thumb" aria-hidden="true">
+                    {listing.title.charAt(0).toUpperCase()}
+                  </span>
+                  <div>
+                    <p className="ce-item-title">{listing.title}</p>
+                    <p className="ce-small ce-muted">
+                      {listing.seller?.display_name ?? "Seller"}
+                      {" · "}
+                      {[listing.city, listing.region].filter(Boolean).join(", ")}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <label className="field">
-                <span>
-                  Contact email <span className="req" aria-hidden="true">*</span>
-                </span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
-              </label>
-            </section>
-            <AddressPicker
+                <label className="ce-field">
+                  <span>
+                    Contact email <span aria-hidden="true">*</span>
+                  </span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                </label>
+              </section>
+              <AddressPicker
               addresses={addresses}
               addressId={addressId}
               onSelect={setAddressId}
@@ -205,6 +207,7 @@ export default function CheckoutPage({ listingId }) {
           />
         </form>
       )}
+      </div>
     </div>
   );
 }

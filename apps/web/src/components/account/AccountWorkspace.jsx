@@ -15,6 +15,9 @@ import AccountListings from "./AccountListings.jsx";
 import AccountNav from "./AccountNav.jsx";
 import AccountOverview from "./AccountOverview.jsx";
 import AccountSettings from "./AccountSettings.jsx";
+import Button from "../ui/Button.jsx";
+import Pill from "../ui/Pill.jsx";
+import Tabs from "../ui/Tabs.jsx";
 
 /**
  * Persistent Account Workspace shell: compact identity header, always-
@@ -66,80 +69,71 @@ export default function AccountWorkspace({
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="content">
-        <p className="muted">Redirecting to login…</p>
-      </div>
-    );
+    return <p className="ce-small ce-muted">Redirecting to login…</p>;
   }
 
   const displayName = user?.profile?.display_name ?? user?.email?.split("@")[0] ?? "Account";
 
   return (
-    <div className="content acct-page">
-      <div className="acct-identity">
-        <span className="acct-avatar" aria-hidden="true">
-          {displayName.charAt(0).toUpperCase()}
-        </span>
-        <div className="acct-identity-text">
-          <p className="co-eyebrow">Account</p>
-          <h1>{displayName}</h1>
-          <p className="muted small">{user?.email}</p>
-        </div>
-        <div className="acct-identity-actions">
-          <span className="pill">{user?.status}</span>
-          <a className="btn btn-ghost btn-sm" href="#/profile/settings">
-            Edit profile
-          </a>
-        </div>
-      </div>
-
-      <div className="acct-layout">
-        <div className={section === "overview" ? "acct-rail" : "acct-rail acct-rail-collapsed"}>
-          <AccountNav
-            section={section}
-            favoriteCount={favoriteCount}
-            notifUnread={notifUnread}
-            onLogout={handleLogout}
-          />
+    <div className="ce-scope">
+      <div className="ce-container ce-stack">
+        <div className="ce-acct-head">
+          <span className="ce-acct-avatar" aria-hidden="true">
+            {displayName.charAt(0).toUpperCase()}
+          </span>
+          <div>
+            <p className="ce-micro ce-muted">Account</p>
+            <h1 className="ce-h1">{displayName}</h1>
+            <p className="ce-small ce-muted">{user?.email}</p>
+          </div>
+          <div className="ce-acct-status">
+            <Pill status={user?.status} />
+            <Button variant="ghost" size="sm" href="#/profile/settings">
+              Edit profile
+            </Button>
+          </div>
         </div>
 
-        <div className="acct-main">
-          {section !== "overview" && (
-            <a className="btn btn-ghost btn-sm acct-back" href="#/profile">
-              ← Account
-            </a>
-          )}
+        <div className="ce-acct-layout">
+          <div className="ce-acct-rail">
+            <AccountNav
+              section={section}
+              favoriteCount={favoriteCount}
+              notifUnread={notifUnread}
+              onLogout={handleLogout}
+            />
+          </div>
 
-          {section === "overview" && <AccountOverview favoriteCount={favoriteCount} />}
+          <div className="ce-acct-main">
+            {section !== "overview" && (
+              <div>
+                <Button variant="ghost" size="sm" href="#/profile">
+                  ← Account
+                </Button>
+              </div>
+            )}
+
+            {section === "overview" && <AccountOverview favoriteCount={favoriteCount} />}
 
           {section === "listings" && <AccountListings />}
 
-          {section === "offers" && (
-            <section aria-labelledby="acct-offers-heading">
-              <h2 id="acct-offers-heading" className="visually-hidden">Offers</h2>
-              <div className="sale-filter" role="tablist" aria-label="Offer direction">
-                {[
-                  ["received", "Received"],
-                  ["sent", "Sent"],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === value}
-                    className={tab === value ? "chip is-active" : "chip"}
-                    onClick={() => setTab(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div role="tabpanel" aria-label={tab === "received" ? "Offers received" : "Offers sent"}>
-                {tab === "received" ? <SellerOffersPage /> : <BuyerOffersPage />}
-              </div>
-            </section>
-          )}
+            {section === "offers" && (
+              <section aria-labelledby="acct-offers-heading">
+                <h2 id="acct-offers-heading" className="ce-visually-hidden">Offers</h2>
+                <Tabs
+                  label="Offer direction"
+                  value={tab}
+                  onChange={setTab}
+                  tabs={[
+                    { id: "received", label: "Received" },
+                    { id: "sent", label: "Sent" },
+                  ]}
+                />
+                <div role="tabpanel" aria-label={tab === "received" ? "Offers received" : "Offers sent"}>
+                  {tab === "received" ? <SellerOffersPage /> : <BuyerOffersPage />}
+                </div>
+              </section>
+            )}
 
           {section === "orders" && (
             orderId
@@ -155,12 +149,12 @@ export default function AccountWorkspace({
 
           {section === "notifications" && <NotificationsPage />}
 
-          {section === "reviews" && (
-            <section aria-labelledby="acct-reviews-heading">
-              <h2 id="acct-reviews-heading">Reviews about you</h2>
-              <ReviewsSection authFetch={authFetch} isAuthenticated={isAuthenticated} userId={user?.id} />
-            </section>
-          )}
+            {section === "reviews" && (
+              <section aria-labelledby="acct-reviews-heading" className="ce-stack">
+                <h2 id="acct-reviews-heading" className="ce-h2">Reviews about you</h2>
+                <ReviewsSection authFetch={authFetch} isAuthenticated={isAuthenticated} userId={user?.id} />
+              </section>
+            )}
 
           {section === "settings" && <AccountSettings />}
 
@@ -170,6 +164,7 @@ export default function AccountWorkspace({
               : <SupportPage detailBase="/profile/support" />
           )}
         </div>
+      </div>
       </div>
     </div>
   );

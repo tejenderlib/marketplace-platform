@@ -1,0 +1,27 @@
+/* CE index: import order is load-bearing (tokens → base → type → layout
+   → a11y → motion → components). Legacy styles.css loads separately after
+   this file (see main.jsx) so old pages render unchanged. */
+
+@import "./tokens.css";
+@import "./base.css";
+@import "./typography.css";
+@import "./layout.css";
+@import "./a11y.css";
+@import "./motion.css";
+@import "./components/button.css";
+@import "./components/field.css";
+@import "./components/card.css";
+@import "./components/pill.css";
+@import "./components/modal.css";
+@import "./components/tabs.css";
+@import "./components/table.css";
+@import "./components/skeleton.css";
+@import "./components/state.css";
+@import "./components/commerce.css";
+@import "./marketplace.css";
+@import "./landing.css";
+@import "./home.css";
+@import "./offers.css";
+@import "./transact.css";
+@import "./account.css";
+@import "./components/preview.css";

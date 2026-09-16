@@ -1,0 +1,155 @@
+/* CE buttons — premium tactile treatment.
+   Luxury via proportion, typography, edge, and restrained motion:
+   no gradients, no pill radii, no gold fills, no loud shadows. */
+
+.ce-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ce-2);
+  min-height: 2.75rem;
+  padding: 0.625rem 1.375rem;
+  border-radius: var(--ce-r-button);
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0.015em;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--ce-btn-shadow);
+  transition:
+    background var(--ce-d1) var(--ce-ease),
+    border-color var(--ce-d1) var(--ce-ease),
+    color var(--ce-d1) var(--ce-ease),
+    box-shadow var(--ce-d1) var(--ce-ease),
+    transform var(--ce-d1) var(--ce-ease);
+}
+
+.ce-btn:active {
+  transform: translateY(0);
+}
+
+.ce-btn--primary {
+  background: var(--ce-brand);
+  border-color: var(--ce-brand-ink);
+  box-shadow: var(--ce-btn-shadow), var(--ce-btn-inset);
+  color: var(--ce-on-brand);
+}
+
+.ce-btn--primary:hover {
+  background: var(--ce-brand-strong);
+  border-color: var(--ce-brand-ink);
+}
+
+.ce-btn--primary:active {
+  background: var(--ce-brand-ink);
+  border-color: var(--ce-brand-ink);
+  box-shadow: var(--ce-btn-press);
+}
+
+.ce-btn--secondary {
+  background: var(--ce-card);
+  border-color: var(--ce-border);
+  color: var(--ce-ink);
+}
+
+.ce-btn--secondary:hover {
+  background: var(--ce-well);
+  border-color: var(--ce-ink);
+  color: var(--ce-ink);
+}
+
+.ce-btn--secondary:active {
+  background: var(--ce-neutral-bg);
+  border-color: var(--ce-ink);
+  box-shadow: var(--ce-btn-press);
+}
+
+.ce-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--ce-brand);
+  padding-inline: 0.75rem;
+}
+
+.ce-btn--ghost:hover {
+  background: var(--ce-neutral-bg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ce-btn--ghost:active {
+  background: var(--ce-well);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ce-btn--danger {
+  background: transparent;
+  border-color: var(--ce-danger-border);
+  color: var(--ce-danger);
+}
+
+.ce-btn--danger:hover {
+  background: var(--ce-danger-bg);
+  border-color: var(--ce-danger);
+  color: var(--ce-danger);
+}
+
+.ce-btn--danger:active {
+  background: var(--ce-danger);
+  border-color: var(--ce-danger);
+  box-shadow: var(--ce-btn-press);
+  color: var(--ce-card);
+}
+
+.ce-btn--sm {
+  min-height: 2.25rem;
+  padding: 0.375rem 1rem;
+  font-size: var(--ce-small);
+}
+
+.ce-btn--block {
+  width: 100%;
+}
+
+.ce-btn:disabled,
+.ce-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+
+/* Suppress hover/active shifts on disabled controls (incl. <a> as button). */
+.ce-btn--primary:disabled:hover,
+.ce-btn--primary[aria-disabled="true"]:hover {
+  background: var(--ce-brand);
+  border-color: var(--ce-brand-ink);
+}
+
+.ce-btn--secondary:disabled:hover,
+.ce-btn--secondary[aria-disabled="true"]:hover {
+  background: var(--ce-card);
+  border-color: var(--ce-border);
+}
+
+.ce-btn--ghost:disabled:hover,
+.ce-btn--ghost[aria-disabled="true"]:hover {
+  background: transparent;
+  text-decoration: none;
+}
+
+.ce-btn--danger:disabled:hover,
+.ce-btn--danger[aria-disabled="true"]:hover {
+  background: transparent;
+  border-color: var(--ce-danger-border);
+}
+
+.ce-btn:disabled:active,
+.ce-btn[aria-disabled="true"]:active {
+  transform: none;
+  box-shadow: none;
+}

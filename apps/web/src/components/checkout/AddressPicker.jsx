@@ -4,6 +4,9 @@
  * disables only the saved-address radios (offer flow); the form keeps its
  * own required semantics per page.
  */
+
+import Button from "../ui/Button.jsx";
+
 export default function AddressPicker({
   addresses,
   addressId,
@@ -17,15 +20,15 @@ export default function AddressPicker({
   onSave,
 }) {
   return (
-    <section className="co-card" aria-labelledby="co-address-heading">
+    <section className="ce-card" aria-labelledby="co-address-heading">
       <h2 id="co-address-heading">Delivery address</h2>
-      {addresses.loading && <p className="muted">Loading addresses…</p>}
-      {addresses.error && <p className="form-error">{addresses.error}</p>}
+      {addresses.loading && <p className="ce-small ce-muted" role="status">Loading addresses…</p>}
+      {addresses.error && <p className="ce-error" role="alert">{addresses.error}</p>}
       {!addresses.loading && addresses.items.length === 0 && !showNew && (
-        <p className="muted">No saved addresses yet — add one below.</p>
+        <p className="ce-small ce-muted">No saved addresses yet — add one below.</p>
       )}
       {addresses.items.map((addr) => (
-        <label key={addr.id} className="address-option">
+        <label key={addr.id} className="ce-address-option">
           <input
             type="radio"
             name="address"
@@ -39,17 +42,19 @@ export default function AddressPicker({
           </span>
         </label>
       ))}
-      <button type="button" className="btn btn-ghost" onClick={onToggleNew}>
-        {showNew ? "Hide new address" : "Add new address"}
-      </button>
+      <div>
+        <Button variant="ghost" size="sm" onClick={onToggleNew}>
+          {showNew ? "Hide new address" : "Add new address"}
+        </Button>
+      </div>
 
       {showNew && (
-        <div className="co-new-address">
-          <h3>New address (India only)</h3>
-          <div className="form-grid">
-            <label>
+        <div className="ce-form">
+          <h3 className="ce-h3">New address (India only)</h3>
+          <div className="ce-form-row">
+            <label className="ce-field">
               <span>
-                Recipient <span className="req" aria-hidden="true">*</span>
+                Recipient <span aria-hidden="true">*</span>
               </span>
               <input
                 value={newAddress.recipient_name}
@@ -58,9 +63,9 @@ export default function AddressPicker({
                 autoComplete="name"
               />
             </label>
-            <label>
+            <label className="ce-field">
               <span>
-                Address line 1 <span className="req" aria-hidden="true">*</span>
+                Address line 1 <span aria-hidden="true">*</span>
               </span>
               <input
                 value={newAddress.line1}
@@ -69,9 +74,11 @@ export default function AddressPicker({
                 autoComplete="street-address"
               />
             </label>
-            <label>
+          </div>
+          <div className="ce-form-row">
+            <label className="ce-field">
               <span>
-                City <span className="req" aria-hidden="true">*</span>
+                City <span aria-hidden="true">*</span>
               </span>
               <input
                 value={newAddress.city}
@@ -80,7 +87,7 @@ export default function AddressPicker({
                 autoComplete="address-level2"
               />
             </label>
-            <label>
+            <label className="ce-field">
               <span>State</span>
               <input
                 value={newAddress.region}
@@ -88,7 +95,9 @@ export default function AddressPicker({
                 autoComplete="address-level1"
               />
             </label>
-            <label>
+          </div>
+          <div className="ce-form-row">
+            <label className="ce-field">
               <span>PIN code</span>
               <input
                 value={newAddress.postal_code}
@@ -97,7 +106,7 @@ export default function AddressPicker({
                 autoComplete="postal-code"
               />
             </label>
-            <label>
+            <label className="ce-field">
               <span>Phone</span>
               <input
                 value={newAddress.phone}
@@ -106,20 +115,22 @@ export default function AddressPicker({
                 autoComplete="tel"
               />
             </label>
-            <label>
-              <span>Country</span>
-              <select
-                value={newAddress.country}
-                onChange={(event) => onNewChange("country", event.target.value)}
-                autoComplete="country-name"
-              >
-                <option value="IN">India (IN)</option>
-              </select>
-            </label>
           </div>
-          <button type="button" className="btn btn-ghost" disabled={busy} onClick={onSave}>
-            Save address
-          </button>
+          <label className="ce-field">
+            <span>Country</span>
+            <select
+              value={newAddress.country}
+              onChange={(event) => onNewChange("country", event.target.value)}
+              autoComplete="country-name"
+            >
+              <option value="IN">India (IN)</option>
+            </select>
+          </label>
+          <div>
+            <Button variant="ghost" size="sm" disabled={busy} onClick={onSave}>
+              Save address
+            </Button>
+          </div>
         </div>
       )}
     </section>

@@ -24,7 +24,7 @@ export default function AccountNav({ section, favoriteCount, notifUnread, onLogo
   }
 
   return (
-    <nav className="acct-nav" aria-label="Account">
+    <nav className="ce-acct-nav" aria-label="Account">
       <ul>
         {ITEMS.map((item) => {
           const active = section === item.key;
@@ -32,26 +32,23 @@ export default function AccountNav({ section, favoriteCount, notifUnread, onLogo
           return (
             <li key={item.key}>
               <a
-                className={active ? "acct-link is-active" : "acct-link"}
+                className={active ? "ce-acct-link is-active" : "ce-acct-link"}
                 aria-current={active ? "page" : undefined}
                 href={item.href}
               >
                 <span>{item.label}</span>
                 {count != null && count > 0 ? (
-                  <span className="account-count" aria-label={`${count} total`}>
+                  <span className="ce-acct-count" aria-label={`${count} total`}>
                     {count > 99 ? "99+" : count}
                   </span>
-                ) : (
-                  <span className="acct-chevron" aria-hidden="true">›</span>
-                )}
+                ) : null}
               </a>
             </li>
           );
         })}
         <li key="logout">
-          <button type="button" className="acct-link is-danger" onClick={onLogout}>
+          <button type="button" className="ce-acct-link is-danger" onClick={onLogout}>
             <span>Sign Out</span>
-            <span className="acct-chevron" aria-hidden="true">›</span>
           </button>
         </li>
       </ul>

@@ -9,6 +9,10 @@ import {
   listBids,
   placeBid,
 } from "../api/auctions.js";
+import Button from "./ui/Button.jsx";
+import Countdown from "./ui/Countdown.jsx";
+import Pill from "./ui/Pill.jsx";
+import { EmptyState, ErrorState, LoadingState } from "./ui/States.jsx";
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -40,7 +44,7 @@ function describeBidError(error) {
   return "Network error. Is the API running?";
 }
 
-/** Display-only mappings for backend result states (values untouched). */
+/** Display-only label for backend result states (values untouched). */
 function resultStatusLabel(status) {
   switch (status) {
     case "NO_BIDS":
@@ -55,21 +59,6 @@ function resultStatusLabel(status) {
       return "Payment expired";
     default:
       return status ?? "Pending";
-  }
-}
-
-function resultPillClass(status) {
-  switch (status) {
-    case "AWAITING_CHECKOUT":
-      return "pill pill-ending";
-    case "ORDER_CREATED":
-      return "pill pill-sold";
-    case "PAYMENT_COMPLETED":
-      return "pill pill-paid";
-    case "PAYMENT_EXPIRED":
-      return "pill pill-cancelled";
-    default:
-      return "pill";
   }
 }
 
@@ -233,22 +222,16 @@ export default function AuctionPanel({
     }
   }
 
-  if (state.loading) return <p className="muted" role="status">Loading auction…</p>;
+  if (state.loading) return <LoadingState label="Loading auction…" />;
   if (state.error) {
-    return (
-      <div className="empty-state" role="alert">
-        <p>{state.error}</p>
-        <button type="button" className="btn btn-primary" onClick={() => loadAuction()}>
-          Retry
-        </button>
-      </div>
-    );
+    return <ErrorState message={state.error} onRetry={() => loadAuction()} />;
   }
   if (!auction) {
     return (
-      <div className="empty-state">
-        <p>No auction is configured for this listing yet. Check back later.</p>
-      </div>
+      <EmptyState
+        title="No auction yet"
+        hint="No auction is configured for this listing yet. Check back later."
+      />
     );
   }
 
@@ -258,9 +241,13 @@ export default function AuctionPanel({
       : auction.starting_bid_minor;
   const bidable = auction.status === "LIVE";
   const countdownTarget = auction.status === "LIVE" ? auction.ends_at : auction.starts_at;
+
+  // Position feedback from real bid rows only (WINNING/OUTBID are backend states).
+  const myBids = currentUserId != null
+    ? bids.items.filter((bid) => bid.bidder_id === currentUserId)
+    : [];
+  const iAmWinning = myBids.some((bid) => bid.status === "WINNING");
   const countdown = countdownParts(countdownTarget);
-  const countdownMs = countdownTarget ? new Date(countdownTarget).getTime() - Date.now() : NaN;
-  const urgent = auction.status === "LIVE" && Number.isFinite(countdownMs) && countdownMs <= 2 * 60 * 60 * 1000;
 
   const STATUS_LABEL = {
     DRAFT: "Draft",
@@ -270,37 +257,27 @@ export default function AuctionPanel({
     SETTLED: "Settled",
     CANCELLED: "Cancelled",
   };
-  const STATUS_PILL = {
-    LIVE: "pill pill-live",
-    SCHEDULED: "pill",
-    DRAFT: "pill",
-    ENDED: "pill",
-    SETTLED: "pill pill-sold",
-    CANCELLED: "pill pill-cancelled",
-  };
 
   return (
-    <div className="auction-panel">
-      <div className="auction-head">
-        <span className={STATUS_PILL[auction.status] ?? "pill"}>
+    <div className="ce-auction" id="bid-panel">
+      <div className="ce-auction-head">
+        <Pill status={auction.status}>
           {STATUS_LABEL[auction.status] ?? auction.status}
-        </span>
-        {countdown && auction.status === "LIVE" && (
-          <span className={urgent ? "auction-countdown is-urgent" : "auction-countdown"}>
-            Ends in {countdown}
-          </span>
+        </Pill>
+        {auction.status === "LIVE" && countdownTarget && (
+          <Countdown endsAt={countdownTarget} />
         )}
         {countdown && auction.status === "SCHEDULED" && (
-          <span className="auction-countdown">Starts in {countdown}</span>
+          <span className="ce-small ce-muted">Starts in {countdown}</span>
         )}
       </div>
-      <p className="auction-current">
-        <span className="auction-current-label">Current bid</span>
-        <strong className="auction-current-value">
+      <p className="ce-auction-current">
+        <span className="ce-auction-label">Current bid</span>
+        <strong className="ce-auction-value ce-tnum">
           {auction.current_bid_minor != null ? formatPrice(auction.current_bid_minor) : "No bids yet"}
         </strong>
       </p>
-      <dl className="auction-stats">
+      <dl className="ce-auction-stats">
         <div>
           <dt>Starting bid</dt>
           <dd>{formatPrice(auction.starting_bid_minor)}</dd>
@@ -327,10 +304,21 @@ export default function AuctionPanel({
         </div>
       </dl>
 
+      {auction.status === "LIVE" && myBids.length > 0 && (
+        <p
+          className={iAmWinning ? "ce-notice" : "ce-notice ce-notice--warning"}
+          role="status"
+        >
+          {iAmWinning
+            ? "You're the highest bidder."
+            : "You've been outbid — raise your bid to retake the lead."}
+        </p>
+      )}
+
       {auction.status === "LIVE" && (
-        <form className="bid-form" onSubmit={submitBid}>
-          <label htmlFor="bid-input">Your bid (₹, min. {formatPrice(minimum)})</label>
-          <div className="bid-row">
+        <form className="ce-form" onSubmit={submitBid}>
+          <label className="ce-field">
+            <span>Your bid (₹)</span>
             <input
               id="bid-input"
               type="number"
@@ -340,79 +328,88 @@ export default function AuctionPanel({
               onChange={(e) => setBidInput(e.target.value)}
               placeholder={`Min. ${formatPrice(minimum)}`}
               disabled={busy}
+              aria-describedby="bid-floor-hint"
             />
-            <button type="submit" className="btn btn-primary" disabled={busy}>
+            <span id="bid-floor-hint" className="ce-hint">
+              Minimum accepted bid is {formatPrice(minimum)} (starting bid plus increment).
+            </span>
+          </label>
+          <div className="ce-bid-row">
+            <Button variant="primary" type="submit" disabled={busy} block>
               {busy ? "Placing…" : "Place Bid"}
-            </button>
+            </Button>
           </div>
         </form>
       )}
       {auction.status === "SCHEDULED" && (
-        <p className="muted">Bidding opens {formatDateTime(auction.starts_at)}.</p>
+        <p className="ce-small ce-muted">Bidding opens {formatDateTime(auction.starts_at)}.</p>
       )}
-      {auction.status === "DRAFT" && <p className="muted">This auction is not open yet.</p>}
+      {auction.status === "DRAFT" && <p className="ce-small ce-muted">This auction is not open yet.</p>}
       {(auction.status === "ENDED" || auction.status === "SETTLED") && (
-        <p className="muted">Bidding has ended{auction.status === "SETTLED" ? " and the sale settled." : "."}</p>
+        <p className="ce-small ce-muted">Bidding has ended{auction.status === "SETTLED" ? " and the sale settled." : "."}</p>
       )}
-      {auction.status === "CANCELLED" && <p className="muted">This auction was cancelled.</p>}
+      {auction.status === "CANCELLED" && <p className="ce-small ce-muted">This auction was cancelled.</p>}
       {feedback && (
-        <p className={feedback.kind === "error" ? "form-error" : "form-ok"} role="status">
+        <p className={feedback.kind === "error" ? "ce-error" : "ce-ok"} role="status">
           {feedback.text}
         </p>
       )}
 
-      <h3>Bid history ({bids.total})</h3>
-      {bids.loading && <p className="muted">Loading bids…</p>}
-      {bids.error && <p className="form-error">{bids.error}</p>}
+      <h3 className="ce-h3">Bid history ({bids.total})</h3>
+      {bids.loading && <LoadingState label="Loading bids…" />}
+      {bids.error && <p className="ce-error">{bids.error}</p>}
       {!bids.loading && !bids.error && bids.items.length === 0 && (
-        <p className="muted">No bids yet — be the first.</p>
+        <p className="ce-small ce-muted">No bids yet — be the first.</p>
       )}
       {!bids.loading && !bids.error && bids.items.length > 0 && (
-        <ol className="bid-history">
+        <ol className="ce-bid-history">
           {bids.items.map((bid) => (
             <li key={bid.id}>
-              <span className="bidder">{bid.bidder?.display_name ?? `Bidder ${bid.bidder_id.slice(0, 8)}`}</span>
-              <span className="bid-amount">{formatPrice(bid.amount_minor)}</span>
-              <span className="bid-time">
-                {formatDateTime(bid.created_at)} · {bid.status}
+              <span>{bid.bidder?.display_name ?? `Bidder ${bid.bidder_id.slice(0, 8)}`}</span>
+              <span className="ce-bid-amount">{formatPrice(bid.amount_minor)}</span>
+              <span className="ce-small ce-muted">
+                {formatDateTime(bid.created_at)}
               </span>
+              <Pill status={bid.status}>{bid.status}</Pill>
             </li>
           ))}
         </ol>
       )}
 
       {(auction.status === "ENDED" || auction.status === "SETTLED") && (
-        <div className={`result-box is-${(result.data?.status ?? "pending").toLowerCase().replace(/[^a-z]/g, "")}`}>
-          <h3>Auction result</h3>
-          {result.loading && <p className="muted">Loading result…</p>}
-          {result.error && <p className="form-error">{result.error}</p>}
+        <div className="ce-result">
+          <h3 className="ce-h3">Auction result</h3>
+          {result.loading && <LoadingState label="Loading result…" />}
+          {result.error && <p className="ce-error">{result.error}</p>}
           {!result.loading && !result.error && !result.data && (
-            <p className="muted">No result published yet.</p>
+            <p className="ce-small ce-muted">No result published yet.</p>
           )}
           {!result.loading && !result.error && result.data && (
             <>
-              <p className="result-status">
-                <span className={resultPillClass(result.data.status)}>{resultStatusLabel(result.data.status)}</span>
+              <p className="ce-cluster">
+                <Pill status={result.data.status}>
+                  {resultStatusLabel(result.data.status)}
+                </Pill>
                 {result.data.final_price_minor != null && (
-                  <strong className="result-price">{formatPrice(result.data.final_price_minor)}</strong>
+                  <strong className="ce-price ce-tnum">{formatPrice(result.data.final_price_minor)}</strong>
                 )}
               </p>
-              <dl className="kv">
+              <dl className="ce-facts">
                 {result.data.winner && (
-                  <>
+                  <div>
                     <dt>Winner</dt>
                     <dd>{result.data.winner.display_name ?? "Winner"}</dd>
-                  </>
+                  </div>
                 )}
                 {result.data.checkout_expires_at && (
-                  <>
+                  <div>
                     <dt>Checkout until</dt>
                     <dd>{formatDateTime(result.data.checkout_expires_at)}</dd>
-                  </>
+                  </div>
                 )}
               </dl>
               {result.data.status === "PAYMENT_EXPIRED" && (
-                <p className="muted small">
+                <p className="ce-small ce-muted">
                   The winner&apos;s checkout window expired, so this sale did not complete.
                 </p>
               )}
@@ -422,15 +419,17 @@ export default function AuctionPanel({
             && result.data.status === "AWAITING_CHECKOUT"
             && isAuthenticated && currentUserId != null
             && result.data.winner_id === currentUserId && (
-            <button
-              type="button"
-              className="btn btn-bid"
-              onClick={() => {
-                window.location.hash = `#/checkout/auction/${result.data.id}`;
-              }}
-            >
-              Complete Purchase · {result.data.final_price_minor != null ? formatPrice(result.data.final_price_minor) : ""}
-            </button>
+            <div>
+              <Button
+                variant="primary"
+                block
+                onClick={() => {
+                  window.location.hash = `#/checkout/auction/${result.data.id}`;
+                }}
+              >
+                Complete Purchase · {result.data.final_price_minor != null ? formatPrice(result.data.final_price_minor) : ""}
+              </Button>
+            </div>
           )}
         </div>
       )}

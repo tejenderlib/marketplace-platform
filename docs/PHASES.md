@@ -1,8 +1,8 @@
 # Phase Roadmap & History
 
 Phase plan for the marketplace-platform, with actual completion status.
-"Working tree" means implemented but not yet committed (see
-[PROJECT_STATUS.md](PROJECT_STATUS.md)).
+All phases 0–10 are completed and committed at `HEAD` (`4062345`,
+clean tree, in sync with `origin/main`).
 
 | Phase | Name | Status |
 |-------|------|--------|
@@ -13,10 +13,10 @@ Phase plan for the marketplace-platform, with actual completion status.
 | 4 | Admin | Completed |
 | 5 | Storefront | Completed |
 | 6 | Marketplace/User Interaction | Completed |
-| 7 | Communication, Trust & Support | Completed (working tree) |
-| 8 | Security & Reliability | **Partially complete** |
-| 9 | Documentation | In progress (this task) |
-| 10 | UI/UX Polish | Planned |
+| 7 | Communication, Trust & Support | Completed (committed) |
+| 8 | Security & Reliability | Completed (8.1–8.17 committed) |
+| 9 | Documentation | Completed |
+| 10 | UI/UX Polish | Completed (frontend-only) |
 
 ## Phase 0 — Planning & scope
 
@@ -31,11 +31,12 @@ script. Commit: `ea5f7e7` (2026-09-09).
 
 ## Phase 2 — Database
 
-Full domain schema, SQLAlchemy 2.x models + 12 migrations (identity,
-catalog, trading, orders/payments, INR-only currency, canonicalization
-passes, settled_at, moderation audit). Conventions: UUID PKs, TIMESTAMPTZ
-UTC, BIGINT minor units, PG enums, status-managed entities, immutable
-snapshots/history.
+Full domain schema, SQLAlchemy 2.x models + 17 migrations (`0001`–`0017`:
+identity, catalog, trading, orders/payments, INR-only currency,
+canonicalization passes, settled_at, moderation audit, reviews,
+notifications, messaging/reports/support, refresh rotation, order
+checkout expiry). Conventions: UUID PKs, TIMESTAMPTZ UTC, BIGINT minor
+units, PG enums, status-managed entities, immutable snapshots/history.
 
 ## Phase 3 — Backend APIs
 
@@ -63,14 +64,15 @@ Profiles (user/seller), offers UI (negotiate + offer checkout), auction
 UI (panel, bidding, auction checkout). Committed through
 `5a03cdd` (2026-09-14).
 
-## Phase 7 — Communication, Trust & Support — Completed (working tree)
+## Phase 7 — Communication, Trust & Support — Completed (committed)
 
 - 7.1 Ratings & reviews (migration 0013)
 - 7.3a Notifications (migration 0014) + WebSocket live push
+  (first-frame auth handshake)
 - 7.3b–f Messaging, reports, support (migration 0015) + notification
   wiring across domains
 
-## Phase 8 — Security & Reliability — Completed (working tree)
+## Phase 8 — Security & Reliability — Completed (committed)
 
 | Sub-phase | Work | Status |
 |-----------|------|--------|
@@ -83,14 +85,14 @@ UI (panel, bidding, auction checkout). Committed through
 | 8.7 | Payment hardening: client `simulate` outcomes development-only; production forces provider-decided outcomes | Completed |
 | 8.8 | Session cap: `max_active_refresh_tokens_per_user` enforced at login/refresh (oldest ACTIVE revoked beyond cap) | Completed |
 | 8.9 | Email verification gate: PENDING_VERIFICATION accounts blocked from marketplace endpoints (`require_active_user`); single-use hashed verification tokens via existing `account_action_tokens` table; verify-email + resend-verification endpoints; no email infrastructure in V1 (token surfaced in register response for local use) | Completed |
-| 8.10 | Hidden listing protection: public detail route serves only ACTIVE/RESERVED/SOLD; non-public statuses 404 except seller/admin; favorites restricted to public listings | Completed |
+| 8.10 | Hidden listing protection: public detail route serves only ACTIVE/RESERVED/SOLD listings; DRAFT/PENDING_REVIEW/REJECTED/ REMOVED/ARCHIVED return 404 unless the caller is the seller or an admin; favorites restricted to public listings | Completed |
 | 8.11 | Money/bid upper bounds: centralized `MAX_MONEY_MINOR` (INR 1 crore in paise) on listing prices, offers, bids, auction parameters | Completed |
 | 8.12 | Auction auto-close: in-process scheduler thread (30 s cadence) closing past-due LIVE auctions via the idempotent `close_auction`; single-instance V1 limitation documented | Completed |
 | 8.13 | Offer authorization: accepting an offer rejects sibling PENDING offers in the same locked transaction (at most one ACCEPTED per listing) | Completed |
 | 8.14 | Input limits: message/support/report text ceilings (2000/5000/200 chars) alongside the global body cap | Completed |
 | 8.15 | Bid cap: `max_bids_per_user_per_auction` enforced (429); seller self-bid remains blocked; advanced collusion detection out of V1 scope | Completed |
 | 8.16 | Duplicate-message suppression: identical sender+body in a conversation/ticket inside a 15 s window returns the original row | Completed |
-| 8.17 | Image metadata hardening: MIME allowlist (jpeg/png/webp/gif), 10 MiB size ceiling, 10000 px dimension caps; byte-level validation deferred to the future object-store backend | Completed |
+| 8.17 | Image metadata hardening: MIME allowlist (jpeg/png/webp/ gif), 10 MiB size ceiling, 10000 px dimension caps; byte-level validation deferred to the future object-store backend | Completed |
 
 Deferred (documented, not V1): browser token storage remains localStorage
 (HttpOnly-cookie architecture rejected for V1 as a high-risk auth rewrite
@@ -98,16 +100,22 @@ given the cross-origin SPA/API split — see DECISIONS.md §16), real email
 delivery, real payment provider, byte-level image validation, Redis-backed
 shared rate limiting/scheduling for multi-instance deployments.
 
-## Phase 9 — Documentation — In progress
+## Phase 9 — Documentation — Completed
 
 Centralized project documentation under `docs/`: DECISIONS.md, FLOW.md,
 PROJECT_STATUS.md, AI_CHANGELOG.md, PHASES.md (this file), alongside the
-existing Phase 1 architecture baseline. Documentation only; no behavior
-changes.
+existing Phase 1 architecture baseline, plus the post-publication
+moderation-lifecycle record. Documentation only; no behavior changes.
 
-## Phase 10 — UI/UX Polish — Planned
+## Phase 10 — UI/UX Polish — Completed (frontend-only)
 
-Storefront and admin SPA polish. Not started.
+Storefront and admin SPA polish, committed at `HEAD` (`4062345`):
+sell wizard (`Sell.jsx`, `sell/*` steps), account workspace
+(`account/*`), category browse (`BrowseCategories.jsx`,
+`CategoryMegaMenu.jsx`, `categoryDirectory.js`), checkout components
+(`checkout/*`), chat/support components, admin UI polish, `App.jsx`
+rewrite, `styles.css` expansion. No backend or migration change (head
+remains `0017`).
 
 ## Post-V1 backlog (from [architecture.md](architecture.md))
 

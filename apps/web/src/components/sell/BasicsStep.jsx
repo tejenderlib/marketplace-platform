@@ -2,15 +2,15 @@ import { CONDITIONS } from "./shared.js";
 
 function Field({ label, required, error, hint, children, htmlFor }) {
   return (
-    <label className="field" htmlFor={htmlFor}>
+    <label className="ce-field" htmlFor={htmlFor}>
       <span>
-        {label} {required && <span className="req" aria-hidden="true">*</span>}
-        {!required && <span className="opt"> (optional)</span>}
+        {label} {required && <span aria-hidden="true">*</span>}
+        {!required && <span className="ce-hint"> (optional)</span>}
       </span>
       {children}
-      {hint && <span className="form-help">{hint}</span>}
+      {hint && <span className="ce-hint">{hint}</span>}
       {error && (
-        <span className="form-error" role="alert">
+        <span className="ce-error" role="alert">
           {error}
         </span>
       )}
@@ -21,7 +21,7 @@ function Field({ label, required, error, hint, children, htmlFor }) {
 /** Step 1: title, category, condition, location, description. */
 export default function BasicsStep({ form, errors, categories, onChange }) {
   return (
-    <div className="sell-stepbody">
+    <div className="ce-form" aria-describedby={undefined}>
       <Field label="Title" required error={errors.title} htmlFor="sell-title">
         <input
           id="sell-title"
@@ -30,11 +30,13 @@ export default function BasicsStep({ form, errors, categories, onChange }) {
           maxLength={180}
           onChange={(event) => onChange("title", event.target.value)}
           placeholder="e.g. Used 20T excavator, low hours"
+          aria-describedby="sell-title-count"
+          aria-invalid={errors.title ? true : undefined}
         />
-        <span className="form-help">{form.title.trim().length}/180 · min 3 characters</span>
+        <span className="ce-hint" id="sell-title-count">{form.title.trim().length}/180 · min 3 characters</span>
       </Field>
 
-      <div className="sell-row">
+      <div className="ce-form-row">
         <Field label="Category" required error={errors.category_id} htmlFor="sell-category">
           <select
             id="sell-category"
@@ -65,7 +67,7 @@ export default function BasicsStep({ form, errors, categories, onChange }) {
         </Field>
       </div>
 
-      <div className="sell-row">
+      <div className="ce-form-row">
         <Field label="City" required error={errors.city} htmlFor="sell-city">
           <input
             id="sell-city"
@@ -88,7 +90,7 @@ export default function BasicsStep({ form, errors, categories, onChange }) {
         </Field>
       </div>
 
-      <div className="sell-row">
+      <div className="ce-form-row">
         <Field label="Country code" required error={errors.country_code} htmlFor="sell-country">
           <input
             id="sell-country"

@@ -19,6 +19,9 @@ import PreviewStep from "../components/sell/PreviewStep.jsx";
 import SaleStep from "../components/sell/SaleStep.jsx";
 import SellerDashboard from "../components/sell/SellerDashboard.jsx";
 import StepIndicator from "../components/sell/StepIndicator.jsx";
+import Button from "../components/ui/Button.jsx";
+import Card from "../components/ui/Card.jsx";
+import { EmptyState, Notice } from "../components/ui/States.jsx";
 import {
   auctionCreateBody,
   fromMinor,
@@ -141,12 +144,17 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
 
   if (!isAuthenticated) {
     return (
-      <div className="content">
-        <div className="empty-state">
-          <p>Selling requires an account. Please sign in to create listings.</p>
-          <button type="button" className="btn btn-primary" onClick={onRequireLogin}>
-            Sign In
-          </button>
+      <div className="ce-scope">
+        <div className="ce-container">
+          <EmptyState
+            title="Sign in to sell"
+            hint="Selling requires an account."
+            action={
+              <Button variant="primary" onClick={onRequireLogin}>
+                Sign In
+              </Button>
+            }
+          />
         </div>
       </div>
     );
@@ -356,29 +364,26 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
   }
 
   return (
-    <div className="content sell-page">
-      <div className="sell-head">
-        <div>
-          <p className="eyebrow">Seller hub</p>
-          <h1>{mode === "wizard" ? "Create a listing" : "Sell"}</h1>
+    <div className="ce-scope">
+      <div className="ce-container ce-stack">
+        <div className="ce-sell-head">
+          <div>
+            <p className="ce-micro ce-muted">Seller hub</p>
+            <h1 className="ce-h1">{mode === "wizard" ? "Create a listing" : "Sell"}</h1>
+          </div>
+          {mode === "wizard" && (
+            <Button variant="ghost" size="sm" onClick={() => setMode("dashboard")}>
+              ← My listings
+            </Button>
+          )}
         </div>
-        {mode === "wizard" && (
-          <button type="button" className="btn btn-ghost" onClick={() => setMode("dashboard")}>
-            ← My listings
-          </button>
-        )}
-      </div>
 
-      {banner?.error && (
-        <p className="form-error" role="alert">
-          {banner.error}
-        </p>
-      )}
-      {banner?.ok && (
-        <p className="form-ok" role="status">
-          {banner.ok}
-        </p>
-      )}
+        {banner?.error && (
+          <Notice tone="error">{banner.error}</Notice>
+        )}
+        {banner?.ok && (
+          <Notice>{banner.ok}</Notice>
+        )}
 
       {mode === "dashboard" ? (
         <SellerDashboard
@@ -399,8 +404,8 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
           busyId={busyId}
         />
       ) : (
-        <div className="sell-layout">
-          <div className="sell-main">
+        <div className="ce-sell-layout">
+          <div className="ce-sell-main">
             <StepIndicator step={step} maxReached={maxReached} onGo={goStep} />
             {step === 0 && (
               <BasicsStep form={form} errors={stepErrors} categories={categories} onChange={updateField} />
@@ -435,54 +440,48 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
                 onSubmit={handleSubmit}
               />
             )}
-            <div className="sell-nav">
-              <button
-                type="button"
-                className="btn btn-ghost"
+            <div className="ce-sell-nav">
+              <Button
+                variant="ghost"
                 disabled={step === 0 || busy != null}
                 onClick={() => goStep(step - 1)}
               >
                 ← Back
-              </button>
+              </Button>
               {step < 3 ? (
-                <button
-                  type="button"
-                  className="btn btn-primary"
+                <Button
+                  variant="primary"
                   disabled={busy != null}
                   onClick={goContinue}
                 >
                   {busy ? "Working…" : "Continue →"}
-                </button>
+                </Button>
               ) : (
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  disabled={busy != null}
-                  onClick={handleSave}
-                >
-                  {busy === "save" ? "Saving…" : "Save Draft"}
-                </button>
+                <p className="ce-small ce-muted">
+                  Review above, then publish from the preview.
+                </p>
               )}
             </div>
           </div>
-          <aside className="sell-side" aria-label="Selling progress">
-            <div className="sell-side-card">
-              <h2>How it works</h2>
-              <ol>
+          <aside className="ce-sell-side" aria-label="Selling progress">
+            <Card variant="soft">
+              <h2 className="ce-h3">How it works</h2>
+              <ol className="ce-small">
                 <li>Describe the item and pick a category.</li>
                 <li>Set a fixed price or auction terms.</li>
                 <li>Attach image references.</li>
                 <li>Preview, save a draft, then publish — it goes live immediately.</li>
               </ol>
-              <p className="muted small">
+              <p className="ce-small ce-muted">
                 {draft
                   ? `Draft ${draft.status} — edits are saved explicitly.`
                   : "Nothing is created until you save a draft."}
               </p>
-            </div>
+            </Card>
           </aside>
         </div>
       )}
+      </div>
     </div>
   );
 }

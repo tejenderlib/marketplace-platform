@@ -1,0 +1,46 @@
+/* CE pills: one semantic set, always label + color (never color-only). */
+
+.ce-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.7rem;
+  border-radius: var(--ce-r-pill);
+  border: 1px solid var(--ce-neutral-border);
+  background: var(--ce-neutral-bg);
+  color: var(--ce-text);
+  font-size: var(--ce-small);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.ce-pill--success {
+  background: var(--ce-success-bg);
+  border-color: var(--ce-success-border);
+  color: var(--ce-success);
+}
+
+.ce-pill--warning {
+  background: var(--ce-warning-bg);
+  border-color: var(--ce-warning-border);
+  color: var(--ce-warning);
+}
+
+.ce-pill--info {
+  background: var(--ce-info-bg);
+  border-color: var(--ce-info-border);
+  color: var(--ce-info);
+}
+
+.ce-pill--danger {
+  background: var(--ce-danger-bg);
+  border-color: var(--ce-danger-border);
+  color: var(--ce-danger);
+}
+
+.ce-pill--auction {
+  background: var(--ce-auction-bg);
+  border-color: var(--ce-auction-border);
+  color: var(--ce-auction);
+}

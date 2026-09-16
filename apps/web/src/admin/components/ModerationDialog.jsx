@@ -1,21 +1,17 @@
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
+
+import Button from "../../components/ui/Button.jsx";
+import Modal from "../../components/ui/Modal.jsx";
 
 const MAX_REASON = 2000;
 
-/** Reusable moderation confirmation dialog (reason required, backend decides). */
+/** Reusable moderation confirmation dialog (reason required, backend decides). Logic unchanged. */
 export default function ModerationDialog({ title, explanation, confirmLabel, onCancel, onConfirm }) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const firstFieldRef = useRef(null);
   const valid = reason.trim().length > 0 && reason.length <= MAX_REASON;
-
-  useEffect(() => {
-    function onKey(event) {
-      if (event.key === "Escape" && !busy) onCancel();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [busy, onCancel]);
 
   async function submit(e) {
     e.preventDefault();
@@ -32,18 +28,19 @@ export default function ModerationDialog({ title, explanation, confirmLabel, onC
   }
 
   return (
-    <div className="dialog-overlay" role="dialog" aria-modal="true" aria-label={title}>
-      <form className="dialog" onSubmit={submit}>
+    <Modal label={title} onClose={onCancel} dismissable={!busy} initialFocusRef={firstFieldRef}>
+      <form onSubmit={submit}>
         <h2>{title}</h2>
-        <p className="muted">{explanation}</p>
+        <p className="ce-small ce-muted">{explanation}</p>
         {error && (
-          <p className="form-error" role="alert">
+          <p className="ce-error" role="alert">
             {error.message ?? String(error)}
           </p>
         )}
-        <label>
+        <label className="ce-field">
           <span>Reason (required)</span>
           <textarea
+            ref={firstFieldRef}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={4}
@@ -51,18 +48,21 @@ export default function ModerationDialog({ title, explanation, confirmLabel, onC
             required
             disabled={busy}
             placeholder="Why is this action needed?"
+            aria-describedby="mod-reason-count"
           />
+          <span id="mod-reason-count" className="ce-hint" aria-live="polite">
+            {reason.length} / {MAX_REASON}
+          </span>
         </label>
-        <p className="muted small">{reason.length} / {MAX_REASON}</p>
-        <div className="dialog-actions">
-          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}>
+        <div className="ce-modal-actions">
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>
             Cancel
-          </button>
-          <button type="submit" className="btn btn-danger" disabled={!valid || busy}>
+          </Button>
+          <Button variant="danger" type="submit" disabled={!valid || busy}>
             {busy ? "Working…" : confirmLabel}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

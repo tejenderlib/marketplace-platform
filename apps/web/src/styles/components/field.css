@@ -1,0 +1,68 @@
+/* CE fields: label + control + hint/error slots. */
+
+.ce-field {
+  display: grid;
+  gap: var(--ce-2);
+}
+
+.ce-field > span,
+.ce-field-label {
+  font-size: var(--ce-small);
+  font-weight: 600;
+  color: var(--ce-ink);
+}
+
+.ce-field input,
+.ce-field select,
+.ce-field textarea,
+.ce-input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--ce-border);
+  border-radius: var(--ce-r-control);
+  background: var(--ce-card);
+  color: var(--ce-text);
+}
+
+.ce-field textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+.ce-field input:focus-visible,
+.ce-field select:focus-visible,
+.ce-field textarea:focus-visible,
+.ce-input:focus-visible {
+  outline: 2px solid var(--ce-focus);
+  outline-offset: 1px;
+  border-color: var(--ce-brand);
+}
+
+.ce-field input[aria-invalid="true"],
+.ce-field select[aria-invalid="true"],
+.ce-field textarea[aria-invalid="true"] {
+  border-color: var(--ce-danger);
+}
+
+.ce-hint {
+  font-size: var(--ce-small);
+  color: var(--ce-muted);
+}
+
+.ce-error {
+  font-size: var(--ce-small);
+  color: var(--ce-danger);
+  font-weight: 600;
+}
+
+.ce-ok {
+  font-size: var(--ce-small);
+  color: var(--ce-success);
+  font-weight: 600;
+}
+
+.ce-form {
+  display: grid;
+  gap: var(--ce-4);
+}

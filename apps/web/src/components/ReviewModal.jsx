@@ -1,23 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { ApiError } from "../api/client.js";
 import { formatPrice } from "../data/listings.js";
 import RatingStars from "./RatingStars.jsx";
+import Button from "./ui/Button.jsx";
+import Modal from "./ui/Modal.jsx";
 
-/** Write-a-review dialog for an eligible (DELIVERED) order. */
+/** Write-a-review dialog for an eligible (DELIVERED) order. Logic unchanged. */
 export default function ReviewModal({ order, counterPartyName, onClose, onSubmit }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    function onKey(event) {
-      if (event.key === "Escape" && !busy) onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [busy, onClose]);
 
   async function submit(e) {
     e.preventDefault();
@@ -43,46 +37,50 @@ export default function ReviewModal({ order, counterPartyName, onClose, onSubmit
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Rate and review">
-      <form className="modal" onSubmit={submit}>
+    <Modal label="Rate and review" onClose={onClose} dismissable={!busy}>
+      <form onSubmit={submit}>
         <h2>Rate &amp; Review</h2>
-        <p className="muted">
+        <p className="ce-small ce-muted">
           {order.listing_title_snapshot} · {formatPrice(order.total_minor)}
           {counterPartyName ? ` · Reviewed: ${counterPartyName}` : ""}
         </p>
         {error && (
-          <p className="form-error" role="alert">
+          <p className="ce-error" role="alert">
             {error}
           </p>
         )}
-        <label>
-          <span>Your rating</span>
-          <RatingStars value={rating} onChange={setRating} />
-        </label>
-        <label>
-          <span>Comment (optional)</span>
-          <textarea
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            rows={3}
-            maxLength={2000}
-            disabled={busy}
-            placeholder="How was this purchase experience?"
-            aria-describedby="review-comment-count"
-          />
-          <span id="review-comment-count" className="muted small">
-            {comment.length}/2000
-          </span>
-        </label>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
+        <div className="ce-form">
+          <div className="ce-field">
+            <span id="review-rating-label">Your rating</span>
+            <div role="group" aria-labelledby="review-rating-label">
+              <RatingStars value={rating} onChange={setRating} />
+            </div>
+          </div>
+          <label className="ce-field">
+            <span>Comment (optional)</span>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              rows={3}
+              maxLength={2000}
+              disabled={busy}
+              placeholder="How was this purchase experience?"
+              aria-describedby="review-comment-count"
+            />
+            <span id="review-comment-count" className="ce-hint">
+              {comment.length}/2000
+            </span>
+          </label>
+        </div>
+        <div className="ce-modal-actions">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
+          </Button>
+          <Button variant="primary" type="submit" disabled={busy}>
             {busy ? "Submitting…" : "Submit review"}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

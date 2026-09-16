@@ -11,6 +11,8 @@ import {
 import { useAuth } from "../auth/AuthContext.jsx";
 import ConversationRow from "../components/chat/ConversationRow.jsx";
 import MessageBubble from "../components/chat/MessageBubble.jsx";
+import Button from "../components/ui/Button.jsx";
+import { EmptyState, ErrorState, LoadingState } from "../components/ui/States.jsx";
 
 const LIMIT = 50;
 const POLL_MS = 8000;
@@ -209,7 +211,6 @@ export default function MessagesPage() {
   const active =
     conversations.items.find((conv) => conv.id === activeId) ?? null;
   const threadTitle = active ? active.listingTitle : compose?.listingTitle;
-  const showThread = threadTitle != null;
 
   function closeThread() {
     setActiveId(null);
@@ -219,25 +220,25 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="content">
-      <h1>Messages</h1>
+    <div className="ce-stack">
+      <div>
+        <p className="ce-micro ce-muted">Direct messages</p>
+        <h1 className="ce-h1">Messages</h1>
+      </div>
       {note && (
-        <p className="form-ok" role="status">{note}</p>
+        <p className="ce-ok" role="status">{note}</p>
       )}
-      {conversations.loading && <p className="muted" role="status">Loading conversations…</p>}
+      {conversations.loading && <LoadingState label="Loading conversations…" />}
       {!conversations.loading && conversations.error && (
-        <div className="empty-state" role="alert">
-          <p>{conversations.error}</p>
-          <button type="button" className="btn btn-primary" onClick={loadConversations}>Retry</button>
-        </div>
+        <ErrorState message={conversations.error} onRetry={loadConversations} />
       )}
-      <div className={showThread ? "messages-layout show-thread" : "messages-layout"}>
-        <aside className="messages-list" aria-label="Conversations">
-          <h2 className="messages-list-heading">Conversations</h2>
+      <div className="ce-msg-layout">
+        <aside aria-label="Conversations">
+          <h2 className="ce-h3">Conversations</h2>
           {!conversations.loading && !conversations.error && conversations.items.length === 0 && (
-            <p className="muted small">No conversations yet. Message a seller from a listing.</p>
+            <p className="ce-small ce-muted">No conversations yet. Message a seller from a listing.</p>
           )}
-          <ul className="conversation-list">
+          <ul className="ce-conv-list">
             {conversations.items.map((conv) => (
               <li key={conv.id}>
                 <ConversationRow
@@ -250,24 +251,20 @@ export default function MessagesPage() {
           </ul>
         </aside>
 
-        <section className="messages-thread" aria-label="Conversation">
+        <section className="ce-thread" aria-label="Conversation">
           {threadTitle ? (
             <>
-              <header className="thread-header">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm thread-back"
-                  onClick={closeThread}
-                >
+              <header className="ce-thread-head">
+                <Button variant="ghost" size="sm" onClick={closeThread}>
                   ← Back
-                </button>
+                </Button>
                 <div>
                   <strong>{threadTitle}</strong>
                   {active && (
-                    <a className="muted small" href={`#/listing/${active.listing_id}`}>View listing</a>
+                    <a className="ce-small ce-muted" href={`#/listing/${active.listing_id}`}>View listing</a>
                   )}
                 </div>
-                <span className="muted small">
+                <span className="ce-small ce-muted">
                   {active
                     ? `Chatting with ${active.recipientName}`
                     : compose
@@ -277,15 +274,15 @@ export default function MessagesPage() {
               </header>
 
               {!active && compose && (
-                <div className="thread-welcome muted small">
+                <p className="ce-small ce-muted">
                   This starts a private conversation about {compose.listingTitle}. Seller won&apos;t see your offer details here.
-                </div>
+                </p>
               )}
 
-              <div className="message-scroll">
-                {thread.loading && <p className="muted small" role="status">Loading messages…</p>}
+              <div className="ce-bubbles" role="log" aria-label="Messages" aria-live="off">
+                {thread.loading && <LoadingState label="Loading messages…" />}
                 {!thread.loading && thread.error && (
-                  <p className="form-error small" role="alert">{thread.error}</p>
+                  <p className="ce-error ce-small" role="alert">{thread.error}</p>
                 )}
                 {thread.messages.map((message) => (
                   <MessageBubble
@@ -295,31 +292,35 @@ export default function MessagesPage() {
                   />
                 ))}
                 {compose && thread.messages.length === 0 && (
-                  <p className="muted small">No messages yet — say hello.</p>
+                  <p className="ce-small ce-muted">No messages yet — say hello.</p>
                 )}
                 <div ref={threadEndRef} />
               </div>
 
-              <form className="thread-compose" onSubmit={handleSend}>
-                {sendError && <p className="form-error" role="alert">{sendError}</p>}
-                <label className="visually-hidden" htmlFor="message-draft">Write a message</label>
-                <textarea
-                  id="message-draft"
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Write a message…"
-                  rows={2}
-                  required
-                />
-                <button type="submit" className="btn btn-primary" disabled={sending || !draft.trim()}>
+              <form className="ce-compose" onSubmit={handleSend}>
+                {sendError && <p className="ce-error" role="alert">{sendError}</p>}
+                <label className="ce-field">
+                  <span className="ce-visually-hidden">Write a message</span>
+                  <textarea
+                    id="message-draft"
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    placeholder="Write a message… (2000 characters max)"
+                    rows={2}
+                    maxLength={2000}
+                    required
+                  />
+                </label>
+                <Button variant="primary" type="submit" disabled={sending || !draft.trim()}>
                   {sending ? "Sending…" : "Send"}
-                </button>
+                </Button>
               </form>
             </>
           ) : (
-            <div className="empty-state">
-              <p>Select a conversation to start messaging.</p>
-            </div>
+            <EmptyState
+              title="No conversation selected"
+              hint="Select a conversation to start messaging."
+            />
           )}
         </section>
       </div>

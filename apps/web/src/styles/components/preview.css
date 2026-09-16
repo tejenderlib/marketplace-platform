@@ -1,0 +1,26 @@
+/* Preview-only helpers (never consumed by product pages). */
+
+.ce-preview {
+  display: grid;
+  gap: var(--ce-8);
+  padding-block: var(--ce-8);
+}
+
+.ce-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--ce-4);
+}
+
+.ce-swatch {
+  height: 3rem;
+  border-radius: var(--ce-r-control);
+  border: 1px solid var(--ce-border);
+}
+
+.ce-preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ce-3);
+  align-items: center;
+}

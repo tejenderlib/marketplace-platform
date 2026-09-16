@@ -8,9 +8,9 @@ export default function TicketContextChip({ ticket }) {
   const context = parseTicketContext(ticket);
   if (!context) return null;
   return (
-    <span className="ticket-context" title={context.header}>
-      <span className="pill">{context.kind}</span>
-      {context.rest && <span className="muted small">{context.rest}</span>}
+    <span className="ce-cluster" title={context.header}>
+      <span className="ce-pill">{context.kind}</span>
+      {context.rest && <span className="ce-small ce-muted">{context.rest}</span>}
     </span>
   );
 }

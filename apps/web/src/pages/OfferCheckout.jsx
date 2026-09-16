@@ -9,6 +9,8 @@ import AddressPicker from "../components/checkout/AddressPicker.jsx";
 import CheckoutSteps from "../components/checkout/CheckoutSteps.jsx";
 import CheckoutSummary from "../components/checkout/CheckoutSummary.jsx";
 import StatusPill from "../components/checkout/StatusPill.jsx";
+import Button from "../components/ui/Button.jsx";
+import { ErrorState, LoadingState } from "../components/ui/States.jsx";
 
 const STEPS = ["Details", "Address", "Review"];
 
@@ -76,8 +78,8 @@ export default function OfferCheckoutPage({ offerId }) {
 
   if (!isAuthenticated) {
     return (
-      <div className="content">
-        <p className="muted">Redirecting to login…</p>
+      <div className="ce-stack">
+        <p className="ce-small ce-muted">Redirecting to login…</p>
       </div>
     );
   }
@@ -152,67 +154,73 @@ export default function OfferCheckoutPage({ offerId }) {
   const total = subtotal + shipping;
 
   return (
-    <div className="content co-page">
-      <a className="back-link" href="#/offers">
-        ← Back
-      </a>
-      <CheckoutSteps steps={STEPS} current={0} />
-      <h1>Accepted Offer Checkout</h1>
-      {offerState.loading && <p className="muted" role="status">Loading offer…</p>}
-      {offerState.error && (
-        <div className="empty-state" role="alert">
-          <p>{offerState.error}</p>
-          <a className="btn btn-primary" href="#/offers">Back to my offers</a>
+    <div className="ce-scope">
+      <div className="ce-container ce-stack">
+        <div>
+          <a className="ce-back" href="#/offers">
+            ← Back
+          </a>
+          <CheckoutSteps steps={STEPS} current={0} />
+          <p className="ce-micro ce-muted">Accepted offer</p>
+          <h1 className="ce-h1">Offer Checkout</h1>
         </div>
-      )}
-      {offer && (
-        <form onSubmit={submit} className="co-layout">
-          <div className="co-main">
-            <section className="co-card" aria-labelledby="co-offer-heading">
-              <h2 id="co-offer-heading">Accepted offer</h2>
-              <div className="co-item">
-                <span className="co-thumb" aria-hidden="true">
-                  {(offer.listing?.title ?? "L").charAt(0).toUpperCase()}
-                </span>
-                <div className="co-item-text">
-                  <p className="co-item-title">
-                    <a href={`#/listing/${offer.listing_id}`}>{offer.listing?.title ?? "Listing"}</a>
-                  </p>
-                  <p className="muted small">
-                    Negotiated with {offer.seller?.display_name ?? "Seller"}
-                  </p>
+        {offerState.loading && <LoadingState label="Loading offer…" />}
+        {offerState.error && (
+          <>
+            <ErrorState message={offerState.error} />
+            <div>
+              <Button variant="secondary" size="sm" href="#/offers">Back to my offers</Button>
+            </div>
+          </>
+        )}
+        {offer && (
+          <form onSubmit={submit} className="ce-co-grid">
+            <div className="ce-co-main">
+              <section className="ce-card" aria-labelledby="co-offer-heading">
+                <h2 id="co-offer-heading">Accepted offer</h2>
+                <div className="ce-item">
+                  <span className="ce-thumb" aria-hidden="true">
+                    {(offer.listing?.title ?? "L").charAt(0).toUpperCase()}
+                  </span>
+                  <div>
+                    <p className="ce-item-title">
+                      <a href={`#/listing/${offer.listing_id}`}>{offer.listing?.title ?? "Listing"}</a>
+                    </p>
+                    <p className="ce-small ce-muted">
+                      Negotiated with {offer.seller?.display_name ?? "Seller"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <p className="co-offer-price">
-                <span>Negotiated price</span>
-                <strong>{formatPrice(offer.amount_minor)}</strong>
-              </p>
-              {existingOrderId && (
-                <p className="form-ok" role="status">
-                  An order already exists for this offer.{" "}
-                  <a href={`#/checkout/payment/${existingOrderId}`}>Continue to payment</a>
+                <p className="ce-summary-price">
+                  <span>Negotiated price</span>
+                  <strong className="ce-tnum">{formatPrice(offer.amount_minor)}</strong>
                 </p>
-              )}
-              {!canCheckout && offer.status !== "ACCEPTED" && (
-                <p className="form-error" role="alert">
-                  Only ACCEPTED offers can be checked out (this offer is {offer.status}).
-                </p>
-              )}
-              <label className="field">
-                <span>
-                  Contact email <span className="req" aria-hidden="true">*</span>
-                </span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={!canCheckout}
-                  required
-                  autoComplete="email"
-                />
-              </label>
-            </section>
-            <AddressPicker
+                {existingOrderId && (
+                  <p className="ce-ok" role="status">
+                    An order already exists for this offer.{" "}
+                    <a href={`#/checkout/payment/${existingOrderId}`}>Continue to payment</a>
+                  </p>
+                )}
+                {!canCheckout && offer.status !== "ACCEPTED" && (
+                  <p className="ce-error" role="alert">
+                    Only ACCEPTED offers can be checked out (this offer is {offer.status}).
+                  </p>
+                )}
+                <label className="ce-field">
+                  <span>
+                    Contact email <span aria-hidden="true">*</span>
+                  </span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={!canCheckout}
+                    required
+                    autoComplete="email"
+                  />
+                </label>
+              </section>
+              <AddressPicker
               addresses={addresses}
               addressId={addressId}
               onSelect={setAddressId}
@@ -244,6 +252,7 @@ export default function OfferCheckoutPage({ offerId }) {
           />
         </form>
       )}
+      </div>
     </div>
   );
 }

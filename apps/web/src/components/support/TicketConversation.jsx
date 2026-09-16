@@ -11,19 +11,19 @@ function formatDateTime(value) {
  */
 export default function TicketConversation({ ticket, messages }) {
   return (
-    <div className="ticket-thread" aria-label="Ticket conversation">
-      <div className="bubble theirs">
+    <div className="ce-bubbles" role="log" aria-label="Ticket conversation">
+      <div className="ce-bubble">
         <p>{ticket.description}</p>
-        <span className="muted small">{formatDateTime(ticket.created_at)}</span>
+        <time>{formatDateTime(ticket.created_at)}</time>
       </div>
       {messages.map((message) => {
         const fromMe = message.author_id != null && message.author_id === ticket.user_id;
         return (
-          <div key={message.id} className={fromMe ? "bubble mine" : "bubble theirs"}>
+          <div key={message.id} className={fromMe ? "ce-bubble mine" : "ce-bubble"}>
             <p>{message.body}</p>
-            <span className="muted small">
+            <time>
               {message.author_id == null ? "Support · " : ""}{formatDateTime(message.created_at)}
-            </span>
+            </time>
           </div>
         );
       })}
