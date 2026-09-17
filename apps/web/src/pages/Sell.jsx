@@ -1,36 +1,38 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError } from "../api/client.js";
-import { findAuctionForListing } from "../api/auctions.js";
 import {
-  addImageRef,
   createAuction,
   createListing,
   deleteImageRef,
   listImageRefs,
-  myListings,
   submitListing,
   updateImageRef,
   updateListing,
+  uploadImage,
 } from "../api/seller.js";
-import BasicsStep from "../components/sell/BasicsStep.jsx";
-import ImagesStep from "../components/sell/ImagesStep.jsx";
+import AddPhotosSection from "../components/sell/AddPhotosSection.jsx";
+import ItemDetailsForm from "../components/sell/ItemDetailsForm.jsx";
+import ListingRequirements from "../components/sell/ListingRequirements.jsx";
 import PreviewStep from "../components/sell/PreviewStep.jsx";
-import SaleStep from "../components/sell/SaleStep.jsx";
-import SellerDashboard from "../components/sell/SellerDashboard.jsx";
-import StepIndicator from "../components/sell/StepIndicator.jsx";
+import SellActions from "../components/sell/SellActions.jsx";
+import SellStepper from "../components/sell/SellStepper.jsx";
 import Button from "../components/ui/Button.jsx";
 import Card from "../components/ui/Card.jsx";
 import { EmptyState, Notice } from "../components/ui/States.jsx";
 import {
+  IMAGE_TYPES,
+  MAX_IMAGE_BYTES,
+  MAX_PHOTOS,
   auctionCreateBody,
-  fromMinor,
   listingCreateBody,
   listingPatchBody,
-  toLocalInput,
   validateBasics,
   validateSale,
 } from "../components/sell/shared.js";
+
+const ACCEPT_HINT = IMAGE_TYPES.map((type) => type.split("/")[1].toUpperCase()).join(", ");
+const MAX_MB = Math.round(MAX_IMAGE_BYTES / 1024 / 1024);
 
 function emptyForm() {
   return {
@@ -48,6 +50,7 @@ function emptyForm() {
     starting_rupees: "",
     increment_rupees: "",
     reserve_rupees: "",
+    duration_days: "",
     starts_at: "",
     ends_at: "",
   };
@@ -71,67 +74,53 @@ function describeSellerError(error) {
   return "Network error. Is the API running?";
 }
 
-function formFromListing(item) {
-  return {
-    title: item.title ?? "",
-    description: item.description ?? "",
-    category_id: item.category?.id ?? "",
-    condition: item.condition ?? "",
-    city: item.city ?? "",
-    region: item.region ?? "",
-    country_code: item.country_code ?? "IN",
-    postal_code: item.postal_code ?? "",
-    sale_type: item.sale_type ?? "FIXED_PRICE",
-    price_rupees: fromMinor(item.fixed_price_minor),
-    offers_enabled: Boolean(item.offers_enabled),
-    starting_rupees: "",
-    increment_rupees: "",
-    reserve_rupees: "",
-    starts_at: "",
-    ends_at: "",
-  };
-}
-
 /**
- * Sell page: seller dashboard (own listings, lifecycle-legal actions) +
- * linear create/edit wizard (Basics → Price → Images → Preview) wired to
- * the real seller APIs. No autosave timer — explicit Save Draft only.
+ * Sell Item page: Add Details → Photos → Preview → Publish.
+ * Form state lives here; child components are props-driven so the same
+ * data flows unchanged into the API body builders (sell/shared.js).
+ * Backend stays authoritative; image storage and auction APIs are
+ * consumed through api/seller.js (provider-agnostic REST).
  */
 export default function SellPage({ authFetch, categories, isAuthenticated, onRequireLogin }) {
-  const [mode, setMode] = useState("dashboard");
   const [form, setForm] = useState(emptyForm);
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
   const [stepErrors, setStepErrors] = useState({});
   const [draft, setDraft] = useState(null);
   const [images, setImages] = useState([]);
+  const [pending, setPending] = useState([]);
   const [busy, setBusy] = useState(null);
-  const [busyId, setBusyId] = useState(null);
   const [banner, setBanner] = useState(null);
-  const [dash, setDash] = useState({ items: [], total: 0, loading: true, error: null });
-  const [statusFilter, setStatusFilter] = useState("");
+  const [selectedImageId, setSelectedImageId] = useState(null);
+  const dirtyRef = useRef(false);
+  const publishedRef = useRef(false);
+  const pendingUrls = useRef([]);
 
   const categoryName = useMemo(
     () => categories.find((cat) => String(cat.id) === String(form.category_id))?.name ?? "—",
     [categories, form.category_id],
   );
 
-  const loadDash = useCallback(
-    async (status) => {
-      setDash((prev) => ({ ...prev, loading: true, error: null }));
-      try {
-        const page = await myListings(authFetch, { status: status || undefined, limit: 20, offset: 0 });
-        setDash({ items: page.items ?? [], total: page.total ?? 0, loading: false, error: null });
-      } catch (error) {
-        setDash((prev) => ({ ...prev, loading: false, error: describeSellerError(error) }));
-      }
-    },
-    [authFetch],
-  );
-
+  // Warn before refresh/tab-close with unsaved changes.
   useEffect(() => {
-    if (isAuthenticated) loadDash(statusFilter);
-  }, [isAuthenticated, statusFilter, loadDash]);
+    function onBeforeUnload(event) {
+      if (dirtyRef.current && !publishedRef.current) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  // Revoke leftover local preview URLs on unmount.
+  useEffect(
+    () => () => {
+      pendingUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      pendingUrls.current = [];
+    },
+    [],
+  );
 
   async function reloadImages(draftId) {
     try {
@@ -141,6 +130,21 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
       setImages([]);
     }
   }
+
+  // Keep the preview selection on an existing image (cover by default).
+  useEffect(() => {
+    if (images.length === 0) {
+      setSelectedImageId(null);
+      return;
+    }
+    if (!images.some((img) => img.id === selectedImageId)) {
+      const ordered = [...images].sort(
+        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.id).localeCompare(String(b.id)),
+      );
+      const cover = ordered.find((img) => img.is_primary) ?? ordered[0];
+      setSelectedImageId(cover?.id ?? null);
+    }
+  }, [images, selectedImageId]);
 
   if (!isAuthenticated) {
     return (
@@ -161,6 +165,7 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
   }
 
   function updateField(key, value) {
+    dirtyRef.current = true;
     setForm((prev) => ({ ...prev, [key]: value }));
     setStepErrors((prev) => {
       if (!prev[key]) return prev;
@@ -170,50 +175,17 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
     });
   }
 
-  function startNew() {
-    setForm(emptyForm());
-    setDraft(null);
-    setImages([]);
-    setStep(0);
-    setMaxReached(0);
-    setStepErrors({});
-    setBanner(null);
-    setMode("wizard");
-    window.scrollTo(0, 0);
-  }
-
-  async function startEdit(item) {
-    const next = formFromListing(item);
-    // Best-effort auction prefill for AUCTION drafts; never blocks editing.
-    if (item.sale_type === "AUCTION") {
-      try {
-        const auction = await findAuctionForListing(item.id);
-        if (auction) {
-          next.starting_rupees = fromMinor(auction.starting_bid_minor);
-          next.increment_rupees = fromMinor(auction.minimum_increment_minor);
-          next.reserve_rupees = fromMinor(auction.reserve_minor);
-          next.starts_at = toLocalInput(auction.starts_at);
-          next.ends_at = toLocalInput(auction.ends_at);
-        }
-      } catch {
-        /* offline prefill is optional */
-      }
+  /** Details-step validation: shared Basics + Sale rules plus required description. */
+  function detailsErrors() {
+    const errors = { ...validateBasics(form), ...validateSale(form) };
+    if ((form.description ?? "").trim().length === 0) {
+      errors.description = "Description is required.";
     }
-    setForm(next);
-    setDraft(item);
-    setStep(0);
-    setMaxReached(0);
-    setStepErrors({});
-    setBanner(null);
-    setMode("wizard");
-    await reloadImages(item.id);
-    window.scrollTo(0, 0);
+    return errors;
   }
 
   async function ensureDraft() {
-    const basics = validateBasics(form);
-    const sale = validateSale(form);
-    const errors = { ...basics, ...sale };
+    const errors = detailsErrors();
     if (Object.keys(errors).length > 0) {
       setStepErrors(errors);
       throw new Error("Fix the highlighted fields before saving.");
@@ -253,32 +225,46 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
     }
   }
 
-  function goContinue() {
-    const errors = step === 0 ? validateBasics(form) : step === 1 ? validateSale(form) : {};
-    if (Object.keys(errors).length > 0) {
-      setStepErrors(errors);
-      return;
-    }
-    const next = step + 1;
-    // Entering Images with no draft yet → persist one first (images need an id).
-    if (next === 2 && !draft) {
-      runGuarded("draft", async () => {
-        const saved = await ensureDraft();
-        await reloadImages(saved.id);
-        setStep(next);
-        setMaxReached((max) => Math.max(max, next));
-        window.scrollTo(0, 0);
-      });
-      return;
-    }
-    setStep(next);
-    setMaxReached((max) => Math.max(max, next));
-    window.scrollTo(0, 0);
-  }
-
   function goStep(index) {
     if (index > maxReached) return;
     setStep(index);
+    window.scrollTo(0, 0);
+  }
+
+  function goContinue() {
+    // Visual order: 0 Photos → 1 Details → 2 Preview → 3 Publish.
+    // Photos needs no validation; Details validates and persists the
+    // draft (images need a server id); Preview requires photos.
+    if (step === 0) {
+      advance(1);
+      return;
+    }
+    if (step === 1) {
+      const errors = detailsErrors();
+      if (Object.keys(errors).length > 0) {
+        setStepErrors(errors);
+        return;
+      }
+      runGuarded("draft", async () => {
+        const saved = await ensureDraft();
+        if (form.sale_type === "AUCTION") await ensureAuctionRow(saved.id);
+        await reloadImages(saved.id);
+        advance(2);
+      });
+      return;
+    }
+    if (step === 2) {
+      if (images.length === 0) {
+        setBanner({ error: "Add at least one photo before publishing." });
+        return;
+      }
+      advance(3);
+    }
+  }
+
+  function advance(next) {
+    setStep(next);
+    setMaxReached((max) => Math.max(max, next));
     window.scrollTo(0, 0);
   }
 
@@ -300,24 +286,37 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
       return submitted;
     });
     if (saved) {
+      dirtyRef.current = false;
+      publishedRef.current = true;
       setBanner({
         ok: `Your listing is live — “${saved.title}” is now ACTIVE and visible to buyers.`,
       });
-      await loadDash(statusFilter);
     }
   }
 
-  async function handleImageAdd(body) {
-    if (!draft) return false;
-    const created = await runGuarded("images", async () => {
-      await addImageRef(authFetch, draft.id, body);
-      await reloadImages(draft.id);
-      return true;
-    });
-    return created === true;
+  function handleBackToMarketplace() {
+    if (dirtyRef.current && !publishedRef.current) {
+      const ok = window.confirm("Leave without saving? Your entered details will be lost.");
+      if (!ok) return;
+    }
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.hash = "#/buy";
+    }
   }
 
-  async function handleImageUpdate(imageId, body) {
+  function checkFile(file) {
+    if (file.type && !IMAGE_TYPES.includes(file.type)) {
+      return `“${file.name}” is not supported. Allowed: ${ACCEPT_HINT}.`;
+    }
+    if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
+      return `“${file.name}” must be smaller than ${MAX_MB}MB.`;
+    }
+    return null;
+  }
+
+  async function updatePhoto(imageId, body) {
     if (!draft) return false;
     const updated = await runGuarded("images", async () => {
       await updateImageRef(authFetch, draft.id, imageId, body);
@@ -327,7 +326,58 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
     return updated === true;
   }
 
-  async function handleImageDelete(imageId) {
+  async function uploadPhoto(file) {
+    if (!draft) return false;
+    const created = await runGuarded("images", async () => {
+      await uploadImage(authFetch, draft.id, file, {});
+      await reloadImages(draft.id);
+      return true;
+    });
+    return created === true;
+  }
+
+  async function handleFiles(files) {
+    const list = Array.from(files ?? []).filter((item) => item instanceof File);
+    if (list.length === 0) return;
+    if (!draft) {
+      setBanner({ error: "Save your details first — photos attach to a saved draft." });
+      return;
+    }
+    const room = MAX_PHOTOS - images.length - pending.length;
+    if (room <= 0) {
+      setBanner({ error: `Maximum ${MAX_PHOTOS} photos per listing. Remove one to add another.` });
+      return;
+    }
+    const accepted = list.slice(0, room);
+    if (list.length > room) {
+      setBanner({ error: `Only ${room} more photo${room === 1 ? "" : "s"} fit (maximum ${MAX_PHOTOS}).` });
+    } else {
+      setBanner(null);
+    }
+    let failed = 0;
+    for (const file of accepted) {
+      const problem = checkFile(file);
+      if (problem) {
+        setBanner({ error: problem });
+        continue;
+      }
+      const url = URL.createObjectURL(file);
+      pendingUrls.current.push(url);
+      const key = `${url}`;
+      setPending((prev) => [...prev, { key, url, name: file.name }]);
+      dirtyRef.current = true;
+      const ok = await uploadPhoto(file);
+      setPending((prev) => prev.filter((item) => item.key !== key));
+      pendingUrls.current = pendingUrls.current.filter((item) => item !== url);
+      URL.revokeObjectURL(url);
+      if (!ok) failed += 1;
+    }
+    if (failed > 0) {
+      setBanner({ error: `${failed} photo${failed === 1 ? "" : "s"} could not be uploaded. Check the notice above and retry.` });
+    }
+  }
+
+  async function handleDeletePhoto(imageId) {
     if (!draft) return;
     await runGuarded("images", async () => {
       await deleteImageRef(authFetch, draft.id, imageId);
@@ -335,47 +385,19 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
     });
   }
 
-  async function handleSubmitDirect(item) {
-    setBusyId(item.id);
-    setBanner(null);
-    try {
-      const published = await submitListing(authFetch, item.id);
-      setBanner({ ok: `“${published.title ?? item.title}” is now live and visible to buyers.` });
-      await loadDash(statusFilter);
-    } catch (error) {
-      setBanner({ error: describeSellerError(error) });
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function handleArchive(item) {
-    setBusyId(item.id);
-    setBanner(null);
-    try {
-      await updateListing(authFetch, item.id, { status: "ARCHIVED" });
-      setBanner({ ok: `“${item.title}” archived.` });
-      await loadDash(statusFilter);
-    } catch (error) {
-      setBanner({ error: describeSellerError(error) });
-    } finally {
-      setBusyId(null);
-    }
-  }
+  const detailsInvalid = Object.keys(detailsErrors()).length > 0;
+  const photosInvalid = images.length === 0;
 
   return (
-    <div className="ce-scope">
-      <div className="ce-container ce-stack">
-        <div className="ce-sell-head">
+    <div className="ce-scope sell-item">
+      <div className="sell-item-body ce-stack">
+        <div className="sell-item-head">
           <div>
-            <p className="ce-micro ce-muted">Seller hub</p>
-            <h1 className="ce-h1">{mode === "wizard" ? "Create a listing" : "Sell"}</h1>
+            <h1 className="ce-h1">Sell an Item</h1>
+            <p className="ce-muted">
+              {step === 0 ? "Add photos of your item" : "List your item in just a few steps"}
+            </p>
           </div>
-          {mode === "wizard" && (
-            <Button variant="ghost" size="sm" onClick={() => setMode("dashboard")}>
-              ← My listings
-            </Button>
-          )}
         </div>
 
         {banner?.error && (
@@ -385,102 +407,140 @@ export default function SellPage({ authFetch, categories, isAuthenticated, onReq
           <Notice>{banner.ok}</Notice>
         )}
 
-      {mode === "dashboard" ? (
-        <SellerDashboard
-          items={dash.items}
-          total={dash.total}
-          loading={dash.loading}
-          error={dash.error}
-          statusFilter={statusFilter}
-          onStatusFilter={setStatusFilter}
-          onRetry={() => loadDash(statusFilter)}
-          onNew={startNew}
-          onEdit={startEdit}
-          onSubmitDirect={handleSubmitDirect}
-          onArchive={handleArchive}
-          onView={(item) => {
-            window.location.hash = `#/listing/${item.id}`;
-          }}
-          busyId={busyId}
-        />
-      ) : (
-        <div className="ce-sell-layout">
-          <div className="ce-sell-main">
-            <StepIndicator step={step} maxReached={maxReached} onGo={goStep} />
+        <div className="sell-item-main sell-item-main--full">
             {step === 0 && (
-              <BasicsStep form={form} errors={stepErrors} categories={categories} onChange={updateField} />
+              <>
+                <AddPhotosSection
+                  draftReady={Boolean(draft)}
+                  imageCount={images.length}
+                  hasPhoto={images.length > 0}
+                  busy={busy != null}
+                  previewProps={{
+                    listingId: draft?.id ?? null,
+                    images,
+                    selectedId: selectedImageId,
+                    onSelect: setSelectedImageId,
+                    onSetCover: (id) => updatePhoto(id, { is_primary: true }),
+                    onRemove: handleDeletePhoto,
+                  }}
+                  onFiles={handleFiles}
+                  onGoDetails={() => goStep(1)}
+                />
+                <SellStepper step={step} maxReached={maxReached} onGo={goStep} />
+                <div className="sell-bottom-actions">
+                  <Button
+                    variant="ghost"
+                    className="sell-cancel-btn"
+                    disabled={busy != null}
+                    onClick={handleBackToMarketplace}
+                  >
+                    CANCEL
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="sell-next-btn"
+                    disabled={photosInvalid || busy != null}
+                    onClick={goContinue}
+                  >
+                    {busy ? "Working…" : "NEXT →"}
+                  </Button>
+                </div>
+              </>
             )}
+
             {step === 1 && (
-              <SaleStep form={form} errors={stepErrors} lockedSaleType={Boolean(draft)} onChange={updateField} />
+              <>
+                <Card>
+                  <h2 className="ce-h2">Item Details</h2>
+                  <p className="ce-muted">
+                    Tell buyers what you are selling. Fields marked * are required.
+                  </p>
+                  {categories.length === 0 && (
+                    <p className="ce-hint">Loading categories…</p>
+                  )}
+                  <ItemDetailsForm
+                    form={form}
+                    errors={stepErrors}
+                    categories={categories}
+                    lockedSaleType={Boolean(draft)}
+                    onChange={updateField}
+                  />
+                </Card>
+                <SellStepper step={step} maxReached={maxReached} onGo={goStep} />
+                <SellActions
+                  onBack={() => goStep(0)}
+                  onNext={goContinue}
+                  nextLabel="Next: Preview →"
+                  nextDisabled={detailsInvalid}
+                  busy={busy != null}
+                />
+              </>
             )}
+
             {step === 2 && (
-              <ImagesStep
-                draftId={draft?.id ?? null}
-                images={images}
-                busy={busy === "images" || busy === "draft"}
-                onEnsureDraft={() =>
-                  runGuarded("draft", async () => {
-                    const saved = await ensureDraft();
-                    await reloadImages(saved.id);
-                  })
-                }
-                onAdd={handleImageAdd}
-                onUpdate={handleImageUpdate}
-                onDelete={handleImageDelete}
-              />
+              <>
+                <Card>
+                  <h2 className="ce-h2">Preview</h2>
+                  <p className="ce-muted">
+                    This is how buyers will see your listing.
+                  </p>
+                  <PreviewStep
+                    form={form}
+                    categoryName={categoryName}
+                    images={images}
+                    listingId={draft?.id ?? null}
+                    busy={busy === "save" || busy === "submit"}
+                    submitState={null}
+                    onSave={handleSave}
+                    onSubmit={handleSubmit}
+                  />
+                </Card>
+                <SellStepper step={step} maxReached={maxReached} onGo={goStep} />
+                <SellActions
+                  onBack={() => goStep(1)}
+                  onNext={goContinue}
+                  nextLabel="Next: Publish →"
+                  busy={busy != null}
+                />
+              </>
             )}
+
             {step === 3 && (
-              <PreviewStep
-                form={form}
-                categoryName={categoryName}
-                images={images}
-                busy={busy === "save" || busy === "submit"}
-                submitState={null}
-                onSave={handleSave}
-                onSubmit={handleSubmit}
-              />
+              <>
+                <Card>
+                  <h2 className="ce-h2">Publish</h2>
+                  <p className="ce-muted">
+                    Publishing makes the listing live immediately — buyers can see and purchase it right away.
+                  </p>
+                  <ListingRequirements form={form} images={images} />
+                </Card>
+                <SellStepper step={step} maxReached={maxReached} onGo={goStep} />
+                <div className="sell-actions sell-actions--publish">
+                  <Button variant="ghost" disabled={busy != null} onClick={() => goStep(2)}>
+                    ← Back
+                  </Button>
+                  <span className="sell-actions-group">
+                    <Button variant="secondary" disabled={busy != null} onClick={handleSave}>
+                      {busy === "save" ? "Saving…" : "Save Draft"}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      className="sell-publish-btn"
+                      disabled={detailsInvalid || photosInvalid || busy != null}
+                      onClick={handleSubmit}
+                    >
+                      {busy === "submit" ? "Publishing…" : draft?.status === "ACTIVE" ? "Published ✓" : "Publish Listing"}
+                    </Button>
+                  </span>
+                </div>
+                {draft?.status === "ACTIVE" && (
+                  <p className="ce-small">
+                    <a href={`#/listing/${draft.id}`}>View your live listing →</a>
+                  </p>
+                )}
+              </>
             )}
-            <div className="ce-sell-nav">
-              <Button
-                variant="ghost"
-                disabled={step === 0 || busy != null}
-                onClick={() => goStep(step - 1)}
-              >
-                ← Back
-              </Button>
-              {step < 3 ? (
-                <Button
-                  variant="primary"
-                  disabled={busy != null}
-                  onClick={goContinue}
-                >
-                  {busy ? "Working…" : "Continue →"}
-                </Button>
-              ) : (
-                <p className="ce-small ce-muted">
-                  Review above, then publish from the preview.
-                </p>
-              )}
-            </div>
-          </div>
-          <aside className="ce-sell-side" aria-label="Selling progress">
-            <Card variant="soft">
-              <h2 className="ce-h3">How it works</h2>
-              <ol className="ce-small">
-                <li>Describe the item and pick a category.</li>
-                <li>Set a fixed price or auction terms.</li>
-                <li>Attach image references.</li>
-                <li>Preview, save a draft, then publish — it goes live immediately.</li>
-              </ol>
-              <p className="ce-small ce-muted">
-                {draft
-                  ? `Draft ${draft.status} — edits are saved explicitly.`
-                  : "Nothing is created until you save a draft."}
-              </p>
-            </Card>
-          </aside>
         </div>
-      )}
       </div>
     </div>
   );

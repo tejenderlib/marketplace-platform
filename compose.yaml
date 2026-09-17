@@ -38,10 +38,12 @@ services:
       AUTH_LOGIN_RATE_LIMIT_PER_IP: ${AUTH_LOGIN_RATE_LIMIT_PER_IP:-20}
       AUTH_LOGIN_RATE_LIMIT_PER_ACCOUNT: ${AUTH_LOGIN_RATE_LIMIT_PER_ACCOUNT:-5}
       AUTH_REGISTER_RATE_LIMIT_PER_IP: ${AUTH_REGISTER_RATE_LIMIT_PER_IP:-30}
+      MEDIA_DIR: /app/var/media
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
       - ./apps/api:/app
+      - media_data:/app/var/media
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     depends_on:
@@ -92,3 +94,4 @@ services:
 volumes:
   postgres_data:
   web_node_modules:
+  media_data:

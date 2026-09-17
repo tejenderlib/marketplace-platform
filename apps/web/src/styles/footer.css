@@ -1,0 +1,333 @@
+/* Marketplace footer: large dark rounded section, strict monochrome.
+   Own `mf-*` namespace. Decorative layers are aria-hidden and sit
+   behind content (pointer-events: none) so text stays readable. */
+
+/* Background layer: full viewport width, square edges, flush bottom.
+   Content width is governed by .mf-inner below — never by this shell. */
+
+.mf-footer {
+  position: relative;
+  width: 100%;
+  padding: 0;
+  background: #0a0a0a;
+}
+
+/* Soft white→black seam (~28px). Absolute overlay: no layout change,
+   no content impact, no overflow. Static gradient — unaffected by
+   prefers-reduced-motion. */
+.mf-footer::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -27px;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0) 0%,
+    #f5f5f3 38%,
+    #d4d4d0 62%,
+    #6e6e6a 81%,
+    #2b2b28 92%,
+    #0a0a0a 100%
+  );
+}
+
+.mf-shell {
+  position: relative;
+  overflow: hidden;
+  max-width: none;
+  margin: 0;
+  background: #0a0a0a;
+  color: #f0f0ee;
+  border-radius: 0;
+}
+
+/* Readable content column inside the full-bleed background. */
+
+.mf-inner {
+  position: relative;
+  max-width: 100rem;
+  margin-inline: auto;
+  padding: 4rem 2.5rem 0;
+  box-sizing: border-box;
+}
+
+/* ---------- Backdrop: waves + grain + dots + wordmark ---------- */
+
+.mf-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mf-waves {
+  position: absolute;
+  inset: auto 0 0;
+  width: 100%;
+  height: 62%;
+  display: block;
+}
+
+.mf-wordmark {
+  position: absolute;
+  left: 50%;
+  bottom: -0.18em;
+  transform: translateX(-50%);
+  font-size: clamp(4rem, 14vw, 12rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  color: rgb(255 255 255 / 0.045);
+  user-select: none;
+}
+
+/* ---------- Main: brand + columns ---------- */
+
+.mf-main {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  gap: 4rem;
+  padding-bottom: 3.5rem;
+}
+
+.mf-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.mf-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.625rem;
+  background: #ffffff;
+  color: #0a0a0a;
+  font-weight: 800;
+  font-size: 1.375rem;
+}
+
+.mf-brand-name {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.mf-tagline {
+  margin: 1.25rem 0 0;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: #d7d7d2;
+}
+
+.mf-community {
+  margin: 1.5rem 0 0;
+  font-size: 0.875rem;
+  color: #9a9a95;
+}
+
+.mf-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.mf-heading {
+  margin: 0 0 1.1rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.mf-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.mf-links a,
+.mf-link-btn {
+  display: inline-block;
+  padding: 0.35rem 0;
+  min-height: 2rem;
+  font-size: 0.9375rem;
+  color: #b5b5b0;
+  text-decoration: none;
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 150ms ease-out;
+}
+
+.mf-links a:hover,
+.mf-link-btn:hover {
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.mf-future {
+  display: inline-block;
+  padding: 0.35rem 0;
+  font-size: 0.9375rem;
+  color: #6e6e6a;
+  cursor: default;
+}
+
+.mf-acc {
+  display: none;
+}
+
+/* ---------- Bottom bar ---------- */
+
+.mf-bottom {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-top: 1px solid #2a2a2a;
+  padding-block: 1.5rem;
+}
+
+.mf-copy {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #9a9a95;
+}
+
+.mf-legal {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: 0.8125rem;
+  color: #9a9a95;
+}
+
+.mf-legal .mf-future {
+  padding: 0;
+  font-size: 0.8125rem;
+}
+
+.mf-sep {
+  color: #3a3a3a;
+}
+
+.mf-top {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 1px solid #3a3a3a;
+  background: transparent;
+  color: #f0f0ee;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 150ms ease-out, border-color 150ms ease-out;
+}
+
+.mf-top:hover {
+  background: #1b1b1b;
+  border-color: #6e6e6a;
+}
+
+.mf-footer a:focus-visible,
+.mf-footer button:focus-visible,
+.mf-footer summary:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1024px) {
+  .mf-inner {
+    padding: 3rem 2rem 0;
+  }
+  .mf-main {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.5rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .mf-footer::before {
+    top: -23px;
+    height: 24px;
+  }
+  .mf-inner {
+    padding: 2.5rem 1.5rem 0;
+  }
+  .mf-cols {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .mf-col {
+    border-top: 1px solid #2a2a2a;
+  }
+  .mf-col .mf-heading,
+  .mf-col .mf-col-body {
+    display: none;
+  }
+  .mf-acc {
+    display: block;
+  }
+  .mf-acc summary {
+    min-height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #ffffff;
+    cursor: pointer;
+    list-style: none;
+  }
+  .mf-acc summary::-webkit-details-marker {
+    display: none;
+  }
+  .mf-acc summary::after {
+    content: "+";
+    color: #9a9a95;
+    font-size: 1.1rem;
+  }
+  .mf-acc[open] summary::after {
+    content: "–";
+  }
+  .mf-acc .mf-links {
+    padding-bottom: 1rem;
+  }
+  .mf-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .mf-wordmark {
+    font-size: 22vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-footer *,
+  .mf-footer *::before,
+  .mf-footer *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

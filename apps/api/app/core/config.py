@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     jwt_refresh_token_expire_days: int = Field(default=30, gt=0)
     auction_checkout_window_hours: int = Field(default=48, gt=0)
 
+    # Listing-image bytes (Phase 2, cloud-agnostic default): local-disk
+    # directory for the storage backend. Relative paths resolve from the
+    # process working directory (/app in the API container, where Compose
+    # mounts a persistent volume). Future S3/GCS/Azure backends reuse the
+    # opaque storage_key and ignore this directory.
+    media_dir: Path = Field(default=Path("var/media"))
+
     # ---- Phase 8 hardening -------------------------------------------------
     # Payment simulation: the client may choose dummy success/failure outcomes
     # only when explicitly enabled. It defaults to enabled outside production

@@ -29,6 +29,12 @@ export default function DiscoveryGrid({
   onClearSearch,
   query,
   activeCategoryName,
+  condition,
+  conditionLabel,
+  minPrice,
+  maxPrice,
+  onClearCondition,
+  onClearPrice,
   saleType,
   onSelectSaleType,
   page,
@@ -36,6 +42,10 @@ export default function DiscoveryGrid({
   onPage,
 }) {
   const hasCategory = activeCategoryName && activeCategoryName !== "All";
+  const hasPrice = (minPrice !== "" && minPrice != null) || (maxPrice !== "" && maxPrice != null);
+  const priceLabel = hasPrice
+    ? `₹${minPrice || "0"} – ₹${maxPrice || "∞"}`
+    : "";
   const showSkeletons = loading && items.length === 0;
 
   return (
@@ -77,7 +87,27 @@ export default function DiscoveryGrid({
               </button>
             </span>
           ) : null}
-          {!query && !hasCategory ? (
+          {condition ? (
+            <span className="ce-context-pill">
+              <strong>{conditionLabel || condition}</strong>
+              <button
+                type="button"
+                onClick={onClearCondition}
+                aria-label={`Clear condition filter ${conditionLabel || condition}`}
+              >
+                ✕
+              </button>
+            </span>
+          ) : null}
+          {hasPrice ? (
+            <span className="ce-context-pill ce-tnum">
+              <strong>{priceLabel}</strong>
+              <button type="button" onClick={onClearPrice} aria-label="Clear price filter">
+                ✕
+              </button>
+            </span>
+          ) : null}
+          {!query && !hasCategory && !condition && !hasPrice ? (
             <span className="ce-small ce-muted">Showing everything</span>
           ) : null}
         </div>
@@ -94,6 +124,10 @@ export default function DiscoveryGrid({
             </button>
           ))}
         </div>
+        <p className="buy-sort" title="The catalogue API returns newest listings first">
+          <span className="ce-small ce-muted">Sort by</span>
+          <strong className="ce-small">Newest first</strong>
+        </p>
       </div>
 
       {showSkeletons && (

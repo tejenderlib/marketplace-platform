@@ -13,13 +13,16 @@ export default function PreviewStep({
   form,
   categoryName,
   images,
+  listingId,
   busy,
   submitState,
   onSave,
   onSubmit,
 }) {
+  const ordered = [...images].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const primary = ordered.find((img) => img.is_primary) ?? ordered[0] ?? null;
   const previewListing = {
-    id: "preview",
+    id: listingId ?? "preview",
     title: form.title.trim() || "Your listing title",
     priceLabel:
       form.sale_type === "FIXED_PRICE"
@@ -35,8 +38,8 @@ export default function PreviewStep({
     sellerId: null,
     sellerName: "You",
     imageCount: images.length,
-    primaryImage: null,
-    images: [],
+    primaryImage: primary,
+    images: ordered,
     auction: null,
     status: "DRAFT",
   };
@@ -45,7 +48,7 @@ export default function PreviewStep({
     <div className="ce-form">
       <div className="ce-preview-grid">
         <div>
-          <ListingCard listing={previewListing} isFavorite={false} onToggleFavorite={() => {}} preview />
+          <ListingCard listing={previewListing} isFavorite={false} onToggleFavorite={() => {}} preview authed />
           <p className="ce-hint">Card preview — how buyers will see it in results.</p>
         </div>
         <dl className="ce-facts">
@@ -102,7 +105,7 @@ export default function PreviewStep({
           )}
           <div>
             <dt>Images</dt>
-            <dd>{images.length} reference{images.length === 1 ? "" : "s"}</dd>
+            <dd>{images.length} photo{images.length === 1 ? "" : "s"}</dd>
           </div>
         </dl>
       </div>

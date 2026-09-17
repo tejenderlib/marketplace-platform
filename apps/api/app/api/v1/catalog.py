@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import FileResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -50,6 +51,11 @@ from app.catalog.schemas import (
     ListingUpdate,
     PaginatedListings,
     SellerSummary,
+)
+from app.core.limits import (
+    ALLOWED_IMAGE_CONTENT_TYPES,
+    MAX_IMAGE_BYTES,
+    MAX_IMAGE_DIMENSION,
 )
 from app.db.session import get_db_session
 from app.identity.dependencies import (
@@ -235,6 +241,92 @@ def _check_price_rules(
         )
 
 
+def _require_image_visibility(
+    listing: Listing, user: User | None, db: Session
+) -> None:
+    """Phase 1 (direct dependency): image reads share the detail visibility rule.
+
+    PUBLIC listings (ACTIVE/RESERVED/SOLD) are world-readable. Any other
+    status is visible only to the listing owner or ADMIN; strangers get
+    404, consistent with ``get_listing`` (existence is not leaked).
+    """
+
+    if listing.status in _PUBLIC_LISTING_STATUSES:
+        return
+    if user is not None and (
+        user.id == listing.seller_id or is_admin(db, user)
+    ):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found."
+    )
+
+
+def _sniff_upload_content_type(data: bytes) -> str | None:
+    """Identify image bytes by magic number; never trust client MIME claims."""
+
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def _validate_upload_bytes(data: bytes) -> tuple[str, int | None, int | None]:
+    """Validate raw upload bytes against the shared image policy (422).
+
+    Returns the sniffed (content_type, width, height). Size, type, and
+    pixel dimensions reuse ``app.core.limits`` — the same bounds as the
+    metadata registration path.
+    """
+
+    if not data:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Upload an image file.",
+        )
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Image exceeds the {MAX_IMAGE_BYTES}-byte limit.",
+        )
+    content_type = _sniff_upload_content_type(data)
+    if content_type is None or content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Unsupported image type. Allowed: "
+            + ", ".join(sorted(ALLOWED_IMAGE_CONTENT_TYPES)),
+        )
+    try:
+        from io import BytesIO
+
+        from PIL import Image
+
+        with Image.open(BytesIO(data)) as image:
+            image.load()
+            width, height = image.size
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Image bytes could not be decoded.",
+        ) from error
+    if (
+        width <= 0
+        or height <= 0
+        or width > MAX_IMAGE_DIMENSION
+        or height > MAX_IMAGE_DIMENSION
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Image dimensions must be within {MAX_IMAGE_DIMENSION}px.",
+        )
+    return content_type, width, height
+
+
 @router.get("/categories", response_model=list[CategoryOut])
 def list_categories(db: Session = Depends(get_db_session)) -> list[Category]:
     """Active categories for marketplace browsing, ordered by name."""
@@ -256,6 +348,8 @@ def list_listings(
     condition: str | None = None,
     seller_id: uuid.UUID | None = None,
     q: str | None = None,
+    min_price: int | None = Query(default=None, ge=0),
+    max_price: int | None = Query(default=None, ge=0),
     limit: int = Query(default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db_session),
@@ -266,6 +360,15 @@ def list_listings(
     status_enum = _parse_status(listing_status) or ListingStatus.ACTIVE
     condition_enum = _parse_condition(condition)
 
+    # Public discovery must never expose non-public listings: DRAFT,
+    # PENDING_REVIEW, REJECTED, REMOVED, ARCHIVED are reachable only via
+    # the seller's /mine route or ADMIN. Strangers get 404 (existence is
+    # not leaked), consistent with the detail visibility rule.
+    if status_enum not in _PUBLIC_LISTING_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found."
+        )
+
     filters = [Listing.status == status_enum]
     if category_id is not None:
         filters.append(Listing.category_id == category_id)
@@ -275,6 +378,13 @@ def list_listings(
         filters.append(Listing.condition == condition_enum)
     if seller_id is not None:
         filters.append(Listing.seller_id == seller_id)
+    # Price bounds apply to FIXED_PRICE listings only (auctions carry no
+    # fixed price). Bounds are in INR minor units, matching the API's
+    # money convention. Both optional: omitting either leaves that side open.
+    if min_price is not None:
+        filters.append(Listing.fixed_price_minor >= min_price)
+    if max_price is not None:
+        filters.append(Listing.fixed_price_minor <= max_price)
     if q is not None and q.strip():
         pattern = f"%{q.strip()}%"
         filters.append(
@@ -561,10 +671,16 @@ def submit_listing(
 @router.get("/listings/{listing_id}/images", response_model=list[ImageOut])
 def list_images(
     listing: Listing = Depends(get_listing_or_404),
+    user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db_session),
 ) -> list[ImageOut]:
-    """Images for a listing, ordered by sort_order."""
+    """Images for a listing, ordered by sort_order.
 
+    Shares the detail visibility rule: non-public listings expose
+    metadata only to the owner or ADMIN (strangers get 404).
+    """
+
+    _require_image_visibility(listing, user, db)
     rows = db.scalars(
         select(ListingImage)
         .where(ListingImage.listing_id == listing.id)
@@ -627,6 +743,110 @@ def add_image(
         ) from error
     db.refresh(image)
     return ImageOut.model_validate(image)
+
+
+@router.post(
+    "/listings/{listing_id}/images/upload",
+    response_model=ImageOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_image(
+    request: Request,
+    listing: Listing = Depends(require_listing_owner_or_admin),
+    db: Session = Depends(get_db_session),
+    alt_text: str | None = Query(default=None, max_length=255),
+) -> ImageOut:
+    """Upload real image bytes for a listing (Phase 2, cloud-agnostic).
+
+    The request body is the raw image file (``Content-Type: image/*``);
+    no multipart framing and no client filename are involved. The server
+    sniffs the true type, validates size/dimensions against
+    ``app.core.limits``, stores bytes under a generated opaque key on
+    local disk, and creates the ``ListingImage`` row with the existing
+    sort_order/primary rules. Returns ``ImageOut`` like the metadata path.
+    """
+
+    from app.media import get_backend
+
+    data = await request.body()
+    content_type, width, height = _validate_upload_bytes(data)
+
+    max_order = db.scalar(
+        select(func.max(ListingImage.sort_order)).where(
+            ListingImage.listing_id == listing.id
+        )
+    )
+    sort_order = (max_order + 1) if max_order is not None else 0
+    existing_count = (
+        db.scalar(
+            select(func.count())
+            .select_from(ListingImage)
+            .where(ListingImage.listing_id == listing.id)
+        )
+        or 0
+    )
+    storage_key = get_backend().save_bytes(data, content_type=content_type)
+    image = ListingImage(
+        listing_id=listing.id,
+        storage_key=storage_key,
+        content_type=content_type,
+        byte_size=len(data),
+        width=width,
+        height=height,
+        alt_text=alt_text.strip() or None if alt_text else None,
+        sort_order=sort_order,
+        is_primary=existing_count == 0,
+    )
+    db.add(image)
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        get_backend().delete(storage_key)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Image conflicts with an existing row.",
+        ) from error
+    db.refresh(image)
+    return ImageOut.model_validate(image)
+
+
+@router.get("/listings/{listing_id}/images/{image_id}/content")
+def get_image_content(
+    image_id: uuid.UUID,
+    listing: Listing = Depends(get_listing_or_404),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db_session),
+):
+    """Serve stored image bytes with the detail visibility rule.
+
+    PUBLIC listings serve openly; private listings serve only to the
+    owner or ADMIN (strangers get 404). Never exposes filesystem paths.
+    """
+
+    from app.media import get_backend
+
+    _require_image_visibility(listing, user, db)
+    image = db.scalars(
+        select(ListingImage).where(
+            ListingImage.id == image_id, ListingImage.listing_id == listing.id
+        )
+    ).first()
+    if image is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Image not found."
+        )
+    path = get_backend().path_for(image.storage_key)
+    if path is None or not path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Image not found."
+        )
+    return FileResponse(
+        path,
+        media_type=image.content_type,
+        content_disposition_type="inline",
+        filename=f"{image.id}",
+    )
 
 
 @router.patch("/listings/{listing_id}/images/{image_id}", response_model=ImageOut)
@@ -700,7 +920,14 @@ def remove_image(
     listing: Listing = Depends(require_listing_owner_or_admin),
     db: Session = Depends(get_db_session),
 ) -> dict[str, str]:
-    """Hard-delete an image row (canonical images carry no status field)."""
+    """Hard-delete an image row (canonical images carry no status field).
+
+    Stored bytes for server-generated keys are removed as well; legacy
+    manual references and already-missing files are skipped safely, and
+    only this listing's own file can ever match.
+    """
+
+    from app.media import get_backend
 
     image = db.scalars(
         select(ListingImage).where(
@@ -711,8 +938,10 @@ def remove_image(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Image not found."
         )
+    storage_key = image.storage_key
     db.delete(image)
     db.commit()
+    get_backend().delete(storage_key)
     return {"status": "deleted"}
 
 

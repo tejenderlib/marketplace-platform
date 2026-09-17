@@ -10,13 +10,17 @@ import ProductMedia from "./ProductMedia.jsx";
 import ProductPrice from "./ProductPrice.jsx";
 import SaleTypeMark from "./SaleTypeMark.jsx";
 import SellerTrustRow from "./SellerTrustRow.jsx";
+import { formatCondition } from "../../data/listings.js";
 
-export default function ListingCard({ listing, isFavorite, onToggleFavorite, preview }) {
+export default function ListingCard({ listing, isFavorite, onToggleFavorite, preview, authed }) {
   const meta = [listing.location, listing.condition].filter(Boolean).join(" · ");
   const body = (
     <>
       <span className="ce-lcard-media">
-        <ProductMedia listing={listing} />
+        <ProductMedia listing={listing} authed={authed} />
+        {listing.condition ? (
+          <span className="ce-lcard-condition">{formatCondition(listing.condition)}</span>
+        ) : null}
       </span>
       <span className="ce-lcard-body">
         <SaleTypeMark listing={listing} />

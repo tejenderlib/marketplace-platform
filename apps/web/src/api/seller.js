@@ -25,9 +25,24 @@ export function myListings(authFetch, { status, sale_type, limit = 20, offset = 
 export function listImageRefs(authFetch, listingId) {
   return authFetch(`/catalog/listings/${listingId}/images`);
 }
-
 export function addImageRef(authFetch, listingId, body) {
   return authFetch(`/catalog/listings/${listingId}/images`, { method: "POST", body });
+}
+
+/**
+ * Phase 2 real upload: raw file bytes (no multipart framing, no client
+ * filename — the server sniffs the type and mints an opaque key).
+ * Returns ImageOut like the metadata path.
+ */
+export function uploadImage(authFetch, listingId, file, { altText } = {}) {
+  const params = new URLSearchParams();
+  if (altText) params.set("alt_text", altText);
+  const suffix = params.toString() ? `?${params}` : "";
+  return authFetch(`/catalog/listings/${listingId}/images/upload${suffix}`, {
+    method: "POST",
+    body: file,
+    rawContentType: file.type || "application/octet-stream",
+  });
 }
 
 export function updateImageRef(authFetch, listingId, imageId, body) {

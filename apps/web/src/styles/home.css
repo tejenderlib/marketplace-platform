@@ -3,98 +3,278 @@
    classes untouched. Includes a small bridge restyling the retained
    legacy dropdowns (account menu, notification bell) to CE tokens. */
 
-/* ---------- Masthead ---------- */
+/* ---------- Masthead: edge-to-edge bar merged with the page ---------- */
+
+/* Compact bar: ~44px tall, 5px top gap, everything in one row. */
 
 .ce-masthead {
   position: sticky;
-  top: 0;
+  top: 0.3125rem;
   z-index: var(--ce-z-sticky);
-  background: rgb(246 244 238 / 0.96);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--ce-hairline);
+  background: #ffffff;
+  padding-inline: 0;
+  border-bottom: 1px solid #ececea;
+  transition: transform 250ms ease-out;
 }
 
-.ce-masthead-bar {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--ce-4);
-  padding-block: var(--ce-3);
+.ce-masthead.is-hidden {
+  transform: translateY(-135%);
+  pointer-events: none;
 }
 
-.ce-masthead-left {
+.ce-masthead-pill {
+  max-width: none;
+  min-height: 2.75rem;
+  margin-inline: auto;
   display: flex;
   align-items: center;
-  gap: var(--ce-4);
-  min-width: 0;
+  gap: 1.25rem;
+  padding: 0.25rem 2rem;
+  background: #ffffff;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .ce-brand {
   display: inline-flex;
   align-items: center;
-  gap: var(--ce-2);
+  gap: 0.6rem;
   text-decoration: none;
+  flex-shrink: 0;
 }
 
 .ce-brand-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: var(--ce-r-control);
-  background: var(--ce-brand);
-  color: var(--ce-on-brand);
-  font-family: var(--ce-font-display);
-  font-size: 1.125rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.375rem;
+  background: #0a0a0a;
+  color: #ffffff;
+  font-weight: 750;
+  font-size: 0.875rem;
+  flex-shrink: 0;
 }
 
 .ce-brand-name {
-  font-family: var(--ce-font-display);
-  font-size: 1.25rem;
-  color: var(--ce-ink);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #0a0a0a;
+  white-space: nowrap;
 }
 
+/* Search dominates the middle of the pill. */
+
 .ce-masthead-search {
-  min-width: 0;
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 8rem;
+  max-width: 44rem;
+  margin-inline: auto;
+}
+
+.ce-masthead-search .ce-search {
+  min-height: 2.25rem;
+  border-radius: 999px;
+  border-color: #e0e0dc;
+  background: #f5f5f3;
+  padding-left: 0.85rem;
+}
+
+.ce-masthead-search .ce-search:focus-within {
+  border-color: #0a0a0a;
+  background: #ffffff;
+}
+
+.ce-masthead-search .ce-search input {
+  font-size: 0.8125rem;
+}
+
+.ce-masthead-search .ce-search-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* Minimal monochrome icon controls (saved items, region info). */
+
+.ce-icon-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid #d4d4d0;
+  background: #ffffff;
+  color: #0a0a0a;
+  text-decoration: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 150ms ease-out, background 150ms ease-out;
+}
+
+.ce-icon-btn svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+}
+
+.ce-icon-btn:hover {
+  border-color: #0a0a0a;
+  background: #f7f7f5;
+}
+
+.ce-icon-btn:focus-visible {
+  outline: 2px solid #0a0a0a;
+  outline-offset: 2px;
+}
+
+.ce-icon-badge {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding-inline: 0.3rem;
+  border-radius: 999px;
+  background: #0a0a0a;
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ce-locale {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ce-locale-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: var(--ce-z-overlay);
+  min-width: 13rem;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: #ffffff;
+  border: 1px solid #e7e7e4;
+  border-radius: 0.75rem;
+  box-shadow: 0 16px 40px rgb(10 10 10 / 0.14);
+}
+
+.ce-locale-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #6e6e6a;
+}
+
+.ce-locale-row strong {
+  color: #0a0a0a;
+}
+
+.ce-search-kbd {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.1rem 0.375rem;
+  border: 1px solid #e4e4e1;
+  border-bottom-width: 2px;
+  border-radius: 0.3125rem;
+  background: #ffffff;
+  color: #6e6e6a;
+  font-family: inherit;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  pointer-events: none;
 }
 
 .ce-masthead-right {
   display: flex;
   align-items: center;
-  gap: var(--ce-3);
+  gap: 0.75rem;
   min-width: 0;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .ce-masthead-right .ce-btn {
   flex: none;
 }
 
+/* Header buttons: black Sell, neutral login. Scoped so the global
+   button system keeps its theme everywhere else. */
+.ce-masthead .ce-btn {
+  min-height: 2rem;
+  padding: 0.3rem 0.9rem;
+  font-size: 0.8125rem;
+}
+
+.ce-masthead .ce-btn--primary {
+  background: #0a0a0a;
+  border-color: #0a0a0a;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.ce-masthead .ce-btn--primary:hover {
+  background: #2b2b28;
+  border-color: #2b2b28;
+}
+
+.ce-masthead .ce-btn--secondary {
+  background: #ffffff;
+  border-color: #d4d4d0;
+  color: #0a0a0a;
+  box-shadow: none;
+}
+
+.ce-masthead .ce-btn--secondary:hover {
+  border-color: #0a0a0a;
+  background: #f7f7f5;
+}
+
+.ce-masthead .ce-btn--ghost {
+  color: #0a0a0a;
+}
+
 .ce-nav {
   display: flex;
   align-items: center;
-  gap: var(--ce-1);
+  gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .ce-nav-link {
   appearance: none;
   background: none;
   border: none;
-  padding: 0.625rem 0.75rem;
-  min-height: 2.75rem;
-  font-size: var(--ce-body);
+  padding: 0.3rem 0.6rem;
+  min-height: 2rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--ce-text);
+  color: #2b2b28;
   text-decoration: none;
   cursor: pointer;
-  border-radius: var(--ce-r-control);
+  border-radius: 0.375rem;
   white-space: nowrap;
+  transition: color 150ms ease-out, background 150ms ease-out;
 }
 
 .ce-nav-link:hover {
-  color: var(--ce-brand);
-  background: var(--ce-neutral-bg);
+  color: #0a0a0a;
+  background: #f0f0ee;
 }
 
 .ce-masthead-search--mobile {
@@ -166,58 +346,7 @@
   font-size: 1.0625rem;
 }
 
-/* ---------- Categories ---------- */
-
-.ce-cats {
-  position: relative;
-}
-
-.ce-cats-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ce-2);
-  min-height: 2.75rem;
-  padding: 0.625rem 0.875rem;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--ce-r-control);
-  font-size: var(--ce-body);
-  font-weight: 600;
-  color: var(--ce-text);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.ce-cats-trigger:hover,
-.ce-cats-trigger.is-open {
-  border-color: var(--ce-border);
-  background: var(--ce-card);
-  color: var(--ce-brand);
-}
-
-.ce-caret {
-  font-size: var(--ce-small);
-  transition: transform var(--ce-d1) var(--ce-ease);
-}
-
-.ce-caret.is-open {
-  transform: rotate(180deg);
-}
-
-.ce-cats-panel {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  left: 0;
-  z-index: var(--ce-z-overlay);
-  width: min(46rem, calc(100vw - 2rem));
-  max-height: min(34rem, calc(100vh - 8rem));
-  overflow-y: auto;
-  background: var(--ce-paper);
-  border: 1px solid var(--ce-hairline);
-  border-radius: var(--ce-r-panel);
-  box-shadow: var(--ce-shadow-float);
-  padding: var(--ce-6);
-}
+/* ---------- Categories (catalogue panel; header dropdown removed) ---------- */
 
 /* Catalogue panel: compact 3-column structured layout. */
 .ce-catalog {
@@ -328,6 +457,20 @@
   cursor: pointer;
 }
 
+.ce-masthead .ce-menu-btn {
+  border-color: #d4d4d0;
+  background: #ffffff;
+  color: #0a0a0a;
+  min-width: 2rem;
+  width: 2rem;
+  min-height: 2rem;
+  height: 2rem;
+}
+
+.ce-masthead .ce-menu-btn:hover {
+  border-color: #0a0a0a;
+}
+
 .ce-menu-bars,
 .ce-menu-bars::before,
 .ce-menu-bars::after {
@@ -368,7 +511,8 @@
   width: min(22rem, 92vw);
   height: 100%;
   overflow-y: auto;
-  background: var(--ce-paper);
+  background: #ffffff;
+  border-left: 1px solid #e7e7e4;
   padding: var(--ce-4) var(--ce-5) var(--ce-8);
   display: grid;
   gap: var(--ce-2);
@@ -380,7 +524,7 @@
   align-items: center;
   justify-content: space-between;
   padding-bottom: var(--ce-3);
-  border-bottom: 1px solid var(--ce-hairline);
+  border-bottom: 1px solid #e7e7e4;
   margin-bottom: var(--ce-2);
 }
 
@@ -401,15 +545,7 @@
 }
 
 .ce-sheet-link--strong {
-  color: var(--ce-brand);
-}
-
-.ce-sheet-cats {
-  margin-top: var(--ce-4);
-  padding-top: var(--ce-4);
-  border-top: 1px solid var(--ce-hairline);
-  display: grid;
-  gap: var(--ce-3);
+  color: #0a0a0a;
 }
 
 /* ---------- Hero ---------- */
@@ -599,45 +735,8 @@
   line-height: 1.5;
 }
 
-/* ---------- Footer ---------- */
-
-.ce-footer {
-  border-top: 1px solid var(--ce-hairline);
-  margin-top: var(--ce-12);
-}
-
-.ce-footer-inner {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--ce-6);
-  flex-wrap: wrap;
-  padding-block: var(--ce-8);
-}
-
-.ce-footer-inner .ce-brand-name {
-  margin: 0 0 var(--ce-2);
-}
-
-.ce-footer-links {
-  display: flex;
-  gap: var(--ce-5);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.ce-footer-links a,
-.ce-footer-inner a {
-  color: var(--ce-muted);
-  font-size: var(--ce-small);
-  text-decoration: none;
-}
-
-.ce-footer-links a:hover,
-.ce-footer-inner a:hover {
-  color: var(--ce-brand);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
+/* (Legacy .ce-footer retired: SiteFooter now uses the mf-* system in
+   styles/footer.css.) */
 
 /* ---------- Notification dropdown ---------- */
 
@@ -730,6 +829,49 @@
   border-color: var(--ce-brand);
 }
 
+.ce-masthead .account-trigger {
+  background: #ffffff;
+  border-color: #d4d4d0;
+  color: #0a0a0a;
+  min-height: 2rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.15rem;
+  gap: 0.4rem;
+}
+
+.ce-masthead .account-trigger:hover,
+.ce-masthead .account-trigger.is-open {
+  border-color: #0a0a0a;
+  background: #f7f7f5;
+}
+
+.ce-masthead .account-avatar {
+  background: #0a0a0a;
+  color: #ffffff;
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 0.75rem;
+}
+
+.ce-masthead .account-name {
+  font-size: 0.8125rem;
+  max-width: 6rem;
+}
+
+.ce-masthead .account-panel,
+.ce-masthead .notification-panel {
+  background: #ffffff;
+  border-color: #e7e7e4;
+}
+
+.ce-masthead .account-item {
+  color: #2b2b28;
+}
+
+.ce-masthead .account-item:hover {
+  background: #f0f0ee;
+  color: #0a0a0a;
+}
+
 .account-panel,
 .notification-panel {
   background: var(--ce-card);
@@ -759,6 +901,18 @@
 
 .bell-btn:hover {
   border-color: var(--ce-brand);
+}
+
+.ce-masthead .bell-btn {
+  border-color: #d4d4d0;
+  background: #ffffff;
+  color: #0a0a0a;
+  min-width: 2rem;
+  min-height: 2rem;
+}
+
+.ce-masthead .bell-btn:hover {
+  border-color: #0a0a0a;
 }
 
 .bell-badge {
@@ -804,9 +958,6 @@
 }
 
 @media (max-width: 1024px) {
-  .ce-cats {
-    display: none;
-  }
   .ce-hero-features {
     grid-template-columns: 1fr;
   }
@@ -819,20 +970,37 @@
   .ce-brand-name {
     display: none;
   }
-  .ce-masthead-bar {
-    gap: var(--ce-3);
+  .ce-masthead-pill {
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
   }
   .ce-masthead-right {
-    gap: var(--ce-2);
+    gap: 0.5rem;
   }
 }
 
 @media (max-width: 640px) {
+  .ce-masthead {
+    padding-inline: 0.75rem;
+  }
+  .ce-masthead-pill {
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    min-height: 0;
+  }
   .ce-masthead-search {
+    display: none;
+  }
+  .ce-masthead .ce-icon-btn,
+  .ce-masthead .ce-locale {
     display: none;
   }
   .ce-masthead-search--mobile {
     display: block;
+    margin-top: 0;
+    background: #ffffff;
+    border-top: 1px solid #ececea;
+    padding: 0.5rem 0.75rem;
   }
   .ce-feature-row {
     grid-template-columns: 7rem 1fr;
@@ -846,6 +1014,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ce-masthead {
+    transition: none;
+  }
   .ce-feature-main,
   .ce-feature-row,
   .ce-spotlight-row,

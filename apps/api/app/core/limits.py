@@ -20,9 +20,11 @@ MAX_SUPPORT_DESCRIPTION_CHARS = 5000
 MAX_REPORT_REASON_CHARS = 200
 MAX_REPORT_DETAILS_CHARS = 2000
 
-# Image metadata registration (no bytes transit the API in V1; the
-# future object-store backend must re-validate actual uploads against
-# the same policy).
+# Image policy (single source of truth for both image paths): the
+# metadata-registration endpoint validates declared values while the
+# byte-upload endpoint (POST .../images/upload) re-validates actual
+# bytes — allowlisted MIME types (sniffed by magic number, never client
+# claims), a 10 MiB size ceiling, and sane pixel dimensions.
 ALLOWED_IMAGE_CONTENT_TYPES = frozenset(
     {"image/jpeg", "image/png", "image/webp", "image/gif"}
 )

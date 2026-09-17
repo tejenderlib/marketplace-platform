@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Footer from "./components/marketplace/SiteFooter.jsx";
 import SiteHeader from "./components/marketplace/SiteHeader.jsx";
@@ -13,6 +13,8 @@ import { useAuth } from "./auth/AuthContext.jsx";
 import { useCategories, useListingDetail, useListings } from "./hooks/useCatalog.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import LoginPage from "./pages/Login.jsx";
+import AccountSection from "./pages/AccountSection.jsx";
+import MyAccountPage from "./pages/MyAccount.jsx";
 import RegisterPage from "./pages/Register.jsx";
 import SellPage from "./pages/Sell.jsx";
 import UiPreview from "./components/UiPreview.jsx";
@@ -27,6 +29,36 @@ import SupportDetailPage from "./pages/SupportDetail.jsx";
 import ReportsPage from "./pages/Reports.jsx";
 
 const PAGE_SIZE = 12;
+
+/**
+ * Route-level auth gate. Waits for the session check (/auth/me) before
+ * deciding: rendering the page is deferred while loading so per-page
+ * guards never mistake "not yet validated" for "unauthenticated".
+ * Unauthenticated visits are sent to Login with the intended destination
+ * preserved for post-login return.
+ */
+function RequireAuth({ loading, isAuthenticated, redirectToLogin, children }) {
+  const redirectedRef = useRef(false);
+  useEffect(() => {
+    if (!loading && !isAuthenticated && !redirectedRef.current) {
+      redirectedRef.current = true;
+      redirectToLogin();
+    }
+  }, [loading, isAuthenticated, redirectToLogin]);
+  if (loading) {
+    return (
+      <div className="app">
+        <div className="content">
+          <p className="muted" role="status">
+            Checking your session…
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (!isAuthenticated) return null;
+  return children;
+}
 
 function parseRoute() {
   // Private Step-1 sign-off artifact; excluded from site navigation.
@@ -68,6 +100,14 @@ function parseRoute() {
   if (window.location.hash === "#/sell" || window.location.hash.startsWith("#/sell?")) {
     return { page: "sell" };
   }
+  if (window.location.hash === "#/account" || window.location.hash.startsWith("#/account?")) {
+    return { page: "account" };
+  }
+  const accountMatch = window.location.hash.match(/^#\/account\/(\w+)/);
+  if (accountMatch) {
+    const valid = ["listings", "purchases", "bids", "saved", "settings"];
+    return { page: "account-section", section: valid.includes(accountMatch[1]) ? accountMatch[1] : "listings" };
+  }
   const sellerProfile = window.location.hash.match(/^#\/seller\/([\w-]+)/);
   if (sellerProfile) return { page: "seller", id: sellerProfile[1] };
   if (window.location.hash.startsWith("#/offers")) {
@@ -97,11 +137,14 @@ function parseRoute() {
 }
 
 export default function App() {
-  const { user, isAuthenticated, authFetch, logout, redirectToLogin } = useAuth();
+  const { user, isAuthenticated, loading, authFetch, logout, redirectToLogin } = useAuth();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [saleType, setSaleType] = useState("");
+  const [condition, setCondition] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [offset, setOffset] = useState(0);
   const [notice, setNotice] = useState(null);
   const [route, setRoute] = useState(parseRoute);
@@ -121,6 +164,14 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [query]);
 
+  // Price UI works in whole rupees; the API prices in INR minor
+  // units (paise), so bounds are converted here at the query layer.
+  function rupeesToMinor(value) {
+    if (value === "" || value === null || value === undefined) return "";
+    const n = Math.floor(Number(value));
+    return Number.isFinite(n) && n >= 0 ? n * 100 : "";
+  }
+
   const categoriesState = useCategories();
   const listingsState = useListings(
     route.page === "home" ||
@@ -130,6 +181,9 @@ export default function App() {
           q: route.page === "buy" ? debouncedQuery : "",
           category_id: route.page === "buy" && activeCategory !== "All" ? activeCategory : "",
           sale_type: route.page === "buy" ? saleType : "",
+          condition: route.page === "buy" ? condition : "",
+          min_price: route.page === "buy" ? rupeesToMinor(minPrice) : "",
+          max_price: route.page === "buy" ? rupeesToMinor(maxPrice) : "",
           limit: PAGE_SIZE,
           offset: route.page === "buy" ? offset : 0,
         }
@@ -169,8 +223,19 @@ export default function App() {
     setDebouncedQuery("");
     setActiveCategory("All");
     setSaleType("");
+    setCondition("");
+    setMinPrice("");
+    setMaxPrice("");
     setOffset(0);
   }
+
+  const hasActiveFilters =
+    query.trim() !== "" ||
+    activeCategory !== "All" ||
+    saleType !== "" ||
+    condition !== "" ||
+    minPrice !== "" ||
+    maxPrice !== "";
 
   function selectCategory(id) {
     setActiveCategory(id);
@@ -185,6 +250,21 @@ export default function App() {
 
   function selectSaleType(value) {
     setSaleType(value);
+    setOffset(0);
+  }
+
+  function selectCondition(value) {
+    setCondition(value);
+    setOffset(0);
+  }
+
+  function changeMinPrice(value) {
+    setMinPrice(value);
+    setOffset(0);
+  }
+
+  function changeMaxPrice(value) {
+    setMaxPrice(value);
     setOffset(0);
   }
 
@@ -268,17 +348,19 @@ export default function App() {
 
   if (route.page === "profile") {
     return (
-      <div className="app">
-        <AccountWorkspace
-          section={route.section ?? "overview"}
-          offersTab={route.offersTab ?? "sent"}
-          orderId={route.orderId ?? null}
-          ticketId={route.ticketId ?? null}
-          favorites={favorites}
-          onToggleFavorite={toggleFavorite}
-          favoriteCount={favorites.size}
-        />
-      </div>
+      <RequireAuth loading={loading} isAuthenticated={isAuthenticated} redirectToLogin={redirectToLogin}>
+        <div className="app">
+          <AccountWorkspace
+            section={route.section ?? "overview"}
+            offersTab={route.offersTab ?? "sent"}
+            orderId={route.orderId ?? null}
+            ticketId={route.ticketId ?? null}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+            favoriteCount={favorites.size}
+          />
+        </div>
+      </RequireAuth>
     );
   }
 
@@ -296,46 +378,179 @@ export default function App() {
 
   if (route.page === "sell") {
     return (
-      <div className="app">
-        <SellPage
-          authFetch={authFetch}
-          categories={categoriesState.data}
-          isAuthenticated={isAuthenticated}
-          onRequireLogin={redirectToLogin}
-        />
-      </div>
+      <RequireAuth loading={loading} isAuthenticated={isAuthenticated} redirectToLogin={redirectToLogin}>
+        <div className="app ce-scope">
+          <SiteHeader
+            user={user}
+            onLogin={() => {
+              window.location.hash = "#/login";
+            }}
+            onOrders={() => {
+              window.location.hash = "#/orders";
+            }}
+            onSell={() => {
+              if (isAuthenticated) {
+                window.location.hash = "#/sell";
+              } else {
+                redirectToLogin();
+              }
+            }}
+            onAuctions={showAuctions}
+            onBuy={buyEquipment}
+            onClearFilters={clearFilters}
+            onLogout={async () => {
+              await logout();
+              setNotice("Signed out.");
+            }}
+            favoriteCount={favorites.size}
+            categories={categoriesState.data}
+            activeCategory={activeCategory}
+            onSelectCategory={selectCategory}
+            categoriesLoading={categoriesState.loading}
+            categoriesError={categoriesState.error}
+            onCategoriesRetry={categoriesState.reload}
+            onViewAllAuctions={showAuctions}
+            query={query}
+            onQueryChange={setQuery}
+          />
+          <SellPage
+            authFetch={authFetch}
+            categories={categoriesState.data}
+            isAuthenticated={isAuthenticated}
+            onRequireLogin={redirectToLogin}
+          />
+        </div>
+      </RequireAuth>
+    );
+  }
+
+  if (route.page === "account") {
+    return (
+      <RequireAuth loading={loading} isAuthenticated={isAuthenticated} redirectToLogin={redirectToLogin}>
+        <div className="app ce-scope">
+          <SiteHeader
+            user={user}
+            onLogin={() => {
+              window.location.hash = "#/login";
+            }}
+            onOrders={() => {
+              window.location.hash = "#/orders";
+            }}
+            onSell={() => {
+              if (isAuthenticated) {
+                window.location.hash = "#/sell";
+              } else {
+                redirectToLogin();
+              }
+            }}
+            onAuctions={showAuctions}
+            onBuy={buyEquipment}
+            onClearFilters={clearFilters}
+            onLogout={async () => {
+              await logout();
+              setNotice("Signed out.");
+            }}
+            favoriteCount={favorites.size}
+            categories={categoriesState.data}
+            activeCategory={activeCategory}
+            onSelectCategory={selectCategory}
+            categoriesLoading={categoriesState.loading}
+            categoriesError={categoriesState.error}
+            onCategoriesRetry={categoriesState.reload}
+            onViewAllAuctions={showAuctions}
+            query={query}
+            onQueryChange={setQuery}
+          />
+          <MyAccountPage />
+        </div>
+      </RequireAuth>
+    );
+  }
+
+  if (route.page === "account-section") {
+    return (
+      <RequireAuth loading={loading} isAuthenticated={isAuthenticated} redirectToLogin={redirectToLogin}>
+        <div className="app ce-scope">
+          <SiteHeader
+            user={user}
+            onLogin={() => {
+              window.location.hash = "#/login";
+            }}
+            onOrders={() => {
+              window.location.hash = "#/orders";
+            }}
+            onSell={() => {
+              if (isAuthenticated) {
+                window.location.hash = "#/sell";
+              } else {
+                redirectToLogin();
+              }
+            }}
+            onAuctions={showAuctions}
+            onBuy={buyEquipment}
+            onClearFilters={clearFilters}
+            onLogout={async () => {
+              await logout();
+              setNotice("Signed out.");
+            }}
+            favoriteCount={favorites.size}
+            categories={categoriesState.data}
+            activeCategory={activeCategory}
+            onSelectCategory={selectCategory}
+            categoriesLoading={categoriesState.loading}
+            categoriesError={categoriesState.error}
+            onCategoriesRetry={categoriesState.reload}
+            onViewAllAuctions={showAuctions}
+            query={query}
+            onQueryChange={setQuery}
+          />
+          <AccountSection
+            section={route.section}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+          />
+        </div>
+      </RequireAuth>
     );
   }
 
   if (route.page === "checkout") {
     return (
-      <div className="app">
-        <CheckoutPage listingId={route.id} />
-      </div>
+      <RequireAuth loading={loading} isAuthenticated={isAuthenticated} redirectToLogin={redirectToLogin}>
+        <div className="app">
+          <CheckoutPage listingId={route.id} />
+        </div>
+      </RequireAuth>
     );
   }
 
   if (route.page === "auction-checkout") {
     return (
-      <div className="app">
-        <AuctionCheckoutPage resultId={route.id} />
-      </div>
+      <RequireAuth loading={loading} isAuthenticated={isAuthenticated} redirectToLogin={redirectToLogin}>
+        <div className="app">
+          <AuctionCheckoutPage resultId={route.id} />
+        </div>
+      </RequireAuth>
     );
   }
 
   if (route.page === "offer-checkout") {
     return (
-      <div className="app">
-        <OfferCheckoutPage offerId={route.id} />
-      </div>
+      <RequireAuth loading={loading} isAuthenticated={isAuthenticated} redirectToLogin={redirectToLogin}>
+        <div className="app">
+          <OfferCheckoutPage offerId={route.id} />
+        </div>
+      </RequireAuth>
     );
   }
 
   if (route.page === "payment") {
     return (
-      <div className="app">
-        <PaymentPage orderId={route.id} />
-      </div>
+      <RequireAuth loading={loading} isAuthenticated={isAuthenticated} redirectToLogin={redirectToLogin}>
+        <div className="app">
+          <PaymentPage orderId={route.id} />
+        </div>
+      </RequireAuth>
     );
   }
 
@@ -375,7 +590,7 @@ export default function App() {
   }
 
   return (
-    <div className="app ce-scope">
+    <div className={route.page === "buy" ? "app ce-scope buy-route" : "app ce-scope"}>
       <SiteHeader
         user={user}
         onLogin={() => {
@@ -393,6 +608,7 @@ export default function App() {
         }}
         onAuctions={showAuctions}
         onBuy={buyEquipment}
+        onClearFilters={clearFilters}
         onLogout={async () => {
           await logout();
           setNotice("Signed out.");
@@ -460,7 +676,7 @@ export default function App() {
             <NotFound />
           )
         ) : (
-          <div className="ce-container">
+          <div className="buy-route-body">
             <HomePage
               items={items}
               total={listingsState.total}
@@ -470,6 +686,7 @@ export default function App() {
               favorites={favorites}
               onToggleFavorite={toggleFavorite}
               onClearFilters={clearFilters}
+              hasActiveFilters={hasActiveFilters}
               onClearCategory={() => selectCategory("All")}
               onClearSearch={clearSearch}
               query={query}
@@ -477,6 +694,12 @@ export default function App() {
               activeCategoryName={activeCategoryName}
               saleType={saleType}
               onSelectSaleType={selectSaleType}
+              condition={condition}
+              onSelectCondition={selectCondition}
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+              onMinPriceChange={changeMinPrice}
+              onMaxPriceChange={changeMaxPrice}
               page={page}
               pages={pages}
               onPage={(next) => {
@@ -496,7 +719,13 @@ export default function App() {
         )}
       </main>
 
-      <Footer />
+      <Footer
+        user={user}
+        onLogout={async () => {
+          await logout();
+          window.location.hash = "#/";
+        }}
+      />
     </div>
   );
 }

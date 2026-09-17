@@ -72,7 +72,7 @@ export default function AccountMenu({ user, displayName, favoriteCount, onOrders
       </button>
       {open && (
         <div className="account-panel" role="menu" aria-label="Account" onClick={close}>
-          <a className="account-item" role="menuitem" href="#/profile" title={user?.email ?? ""}>
+          <a className="account-item" role="menuitem" href="#/account" title={user?.email ?? ""}>
             Profile
           </a>
           <a className="account-item" role="menuitem" href="#/profile/favorites">

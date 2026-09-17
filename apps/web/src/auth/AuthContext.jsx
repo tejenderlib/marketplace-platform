@@ -8,6 +8,8 @@ import {
   getToken,
   login as loginRequest,
   logoutEverywhere,
+  clearPostLoginRedirect,
+  PendingVerificationError,
   refreshSession,
   register as registerRequest,
   setPostLoginRedirect,
@@ -45,6 +47,14 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const me = await fetchMe();
+      // A restored session for an unverified account is NOT treated as
+      // authenticated: verification must complete first (backend
+      // marketplaces endpoints require ACTIVE via require_active_user).
+      if (me && me.status === "PENDING_VERIFICATION") {
+        clearToken();
+        setUser(null);
+        return null;
+      }
       setUser(me);
       setAuthError(null);
       return me;
@@ -53,6 +63,11 @@ export function AuthProvider({ children }) {
         try {
           await refreshOnce();
           const me = await fetchMe();
+          if (me && me.status === "PENDING_VERIFICATION") {
+            clearToken();
+            setUser(null);
+            return null;
+          }
           setUser(me);
           return me;
         } catch {
@@ -99,6 +114,14 @@ export function AuthProvider({ children }) {
       try {
         await loginRequest(email, password);
         const me = await fetchMe();
+        // The backend issues tokens to PENDING_VERIFICATION accounts so
+        // the client can drive verification UX — but no marketplace
+        // session is created until the account is verified.
+        if (me && me.status === "PENDING_VERIFICATION") {
+          clearToken();
+          setUser(null);
+          throw new PendingVerificationError(email);
+        }
         setUser(me);
         return me;
       } catch (error) {
@@ -112,11 +135,13 @@ export function AuthProvider({ children }) {
   const register = useCallback(async (email, password) => {
     setAuthError(null);
     try {
-      await registerRequest(email, password);
-      await loginRequest(email, password);
-      const me = await fetchMe();
-      setUser(me);
-      return me;
+      // Backend contract: 201 { status: PENDING_VERIFICATION,
+      // verification_token }, no tokens issued. Any pre-existing session
+      // (e.g. another user) is dropped so the new account cannot inherit it.
+      const reg = await registerRequest(email, password);
+      clearToken();
+      setUser(null);
+      return reg;
     } catch (error) {
       setAuthError(error);
       throw error;
@@ -127,8 +152,12 @@ export function AuthProvider({ children }) {
     try {
       await logoutEverywhere();
     } finally {
+      // Full client auth teardown: tokens (logoutEverywhere), cached
+      // user, errors, and any stored post-login destination. Per-user
+      // UI state (e.g. favorites) reloads off isAuthenticated downstream.
       setUser(null);
       setAuthError(null);
+      clearPostLoginRedirect();
     }
   }, []);
 
@@ -163,6 +192,9 @@ export function useAuth() {
 
 /** Human-readable message for auth form errors (never leaks stack traces). */
 export function describeAuthError(error) {
+  if (error?.name === "PendingVerificationError") {
+    return "This account needs email verification before logging in. Use the verification step below.";
+  }
   if (error instanceof ApiError) {
     if (error.status === 401) return "Invalid email or password, or the session expired.";
     if (error.status === 403) return typeof error.detail === "string" ? error.detail : "This account is restricted.";

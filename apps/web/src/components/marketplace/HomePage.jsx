@@ -1,50 +1,46 @@
 /**
- * HomePage: premium homepage composition. Reuses the redesigned
- * DiscoveryGrid/ListingCard for fresh listings; hero, spotlight, category
- * index, and trust sections are fed by the SAME discovery payload and
- * category source — nothing invented.
+ * HomePage (BUY marketplace): public storefront composition.
+ * BuyHero banner (untouched) → full-width live DiscoveryGrid.
+ * Category discovery lives in the global header (single mega-menu
+ * system); backend filtering (search, sale-type, category via
+ * mega-menu explore) is untouched. Browsing, search and product
+ * details are public; favorites, sell, checkout and the admin app
+ * enforce auth themselves.
  */
 
+import BuyHero from "./BuyHero.jsx";
 import DiscoveryGrid from "./DiscoveryGrid.jsx";
-import AuctionSpotlight from "./AuctionSpotlight.jsx";
-import CategoryIndex from "./CategoryIndex.jsx";
-import HomeHero from "./HomeHero.jsx";
-import TrustStrip from "./TrustStrip.jsx";
+import { formatCondition } from "../../data/listings.js";
 
 export default function HomePage(props) {
   const {
-    items,
-    loading,
-    query,
-    debouncedQuery,
-    onQueryChange,
-    categories,
-    activeCategory,
-    onSelectCategory,
-    categoriesLoading,
-    categoriesError,
-    onCategoriesRetry,
-    onViewAllAuctions,
+    condition,
+    onSelectCondition,
+    minPrice,
+    maxPrice,
+    onMinPriceChange,
+    onMaxPriceChange,
   } = props;
+  const conditionLabel = condition ? formatCondition(condition) : "";
+
   return (
-    <>
-      <HomeHero
-        items={items}
-        loading={loading}
-        query={query}
-        onQueryChange={onQueryChange}
-      />
-      <AuctionSpotlight items={items} onViewAll={onViewAllAuctions} />
-      <CategoryIndex
-        categories={categories}
-        active={activeCategory}
-        onSelect={onSelectCategory}
-        loading={categoriesLoading}
-        error={categoriesError}
-        onRetry={onCategoriesRetry}
-      />
-      <DiscoveryGrid {...props} query={debouncedQuery} />
-      <TrustStrip />
-    </>
+    <div className="buy-page">
+      <BuyHero />
+      <div className="buy-layout">
+        <DiscoveryGrid
+          {...props}
+          query={props.debouncedQuery}
+          condition={condition}
+          conditionLabel={conditionLabel}
+          minPrice={minPrice}
+          maxPrice={maxPrice}
+          onClearCondition={() => onSelectCondition("")}
+          onClearPrice={() => {
+            onMinPriceChange("");
+            onMaxPriceChange("");
+          }}
+        />
+      </div>
+    </div>
   );
 }

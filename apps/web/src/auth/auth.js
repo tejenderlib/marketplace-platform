@@ -1,8 +1,18 @@
 import { ApiError, apiFetch } from "../api/client.js";
+import { ROUTES } from "../config/routes.js";
 
 const TOKEN_KEY = "mp_access_token";
 const REFRESH_KEY = "mp_refresh_token";
 const NEXT_KEY = "mp_post_login_redirect";
+
+/** Thrown when credentials are valid but the account still needs email verification. */
+export class PendingVerificationError extends Error {
+  constructor(email) {
+    super("Please verify your email address before logging in.");
+    this.name = "PendingVerificationError";
+    this.email = email;
+  }
+}
 
 export function getToken() {
   try {
@@ -51,9 +61,18 @@ export function takePostLoginRedirect() {
   try {
     const next = window.sessionStorage.getItem(NEXT_KEY);
     window.sessionStorage.removeItem(NEXT_KEY);
-    return next && next.startsWith("#/") ? next : "#/";
+    // Authenticated sessions land in the marketplace, not on the landing page.
+    return next && next.startsWith("#/") ? next : ROUTES.buy;
   } catch {
-    return "#/";
+    return ROUTES.buy;
+  }
+}
+
+export function clearPostLoginRedirect() {
+  try {
+    window.sessionStorage.removeItem(NEXT_KEY);
+  } catch {
+    /* storage unavailable */
   }
 }
 
@@ -68,9 +87,28 @@ export async function login(email, password) {
 }
 
 export async function register(email, password) {
+  // Returns the registration response (status + verification_token).
+  // Issues NO tokens and creates NO session — the caller must complete
+  // email verification before logging in.
   return apiFetch("/auth/register", {
     method: "POST",
     body: { email, password },
+  });
+}
+
+export async function verifyEmail(token) {
+  return apiFetch("/auth/verify-email", {
+    method: "POST",
+    body: { token },
+  });
+}
+
+export async function resendVerification(email) {
+  // V1 has no mailer: the fresh verification_token is returned in the
+  // response so the user can complete activation in-app.
+  return apiFetch("/auth/resend-verification", {
+    method: "POST",
+    body: { email },
   });
 }
 

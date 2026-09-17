@@ -434,3 +434,953 @@
     max-width: 88%;
   }
 }
+
+/* ---------- My Account dashboard (myacct-*, monochrome) ---------- */
+
+.myacct {
+  background: #fff;
+  padding-bottom: 40px;
+}
+
+.myacct-body {
+  width: 100%;
+  margin: 0;
+  padding: 32px 32px 0;
+  display: grid;
+  gap: 24px;
+}
+
+.myacct-head h1 {
+  margin: 0;
+  color: #111;
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+  font-size: 32px;
+  font-weight: 700;
+  font-family: var(--ce-font-sans);
+}
+
+.myacct-head p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.myacct-layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.myacct-main {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* Sidebar */
+.myacct-sidebar {
+  position: sticky;
+  top: 16px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.myacct-sidebar-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #111;
+}
+
+.myacct-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.myacct-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--ce-font-sans);
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.myacct-link svg {
+  color: #333;
+  flex: none;
+}
+
+.myacct-link:hover {
+  background: #f5f5f5;
+}
+
+.myacct-link.is-active {
+  background: #f5f5f5;
+  color: #111;
+}
+
+.myacct-link.is-active svg {
+  color: #111;
+}
+
+.myacct-link:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Profile summary */
+.myacct-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.myacct-identity {
+  display: flex;
+  gap: 16px;
+  min-width: 0;
+}
+
+.myacct-avatar-wrap {
+  position: relative;
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.myacct-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #111;
+  color: #fff;
+  font-weight: 700;
+}
+
+.myacct-avatar--lg {
+  width: 5rem;
+  height: 5rem;
+  font-size: 2rem;
+}
+
+.myacct-avatar-edit {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  color: #111;
+}
+
+.myacct-identity-text {
+  min-width: 0;
+}
+
+.myacct-identity-text h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111;
+}
+
+.myacct-bio {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.myacct-facts {
+  margin: 12px 0 0;
+  display: grid;
+  gap: 4px;
+}
+
+.myacct-facts > div {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 8px;
+  font-size: 13px;
+}
+
+.myacct-facts dt {
+  color: #777;
+}
+
+.myacct-facts dd {
+  margin: 0;
+  color: #111;
+  overflow-wrap: anywhere;
+}
+
+.myacct-side {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  justify-items: end;
+}
+
+.myacct-stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.myacct-stat {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.myacct-stat dd {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111;
+}
+
+.myacct-stat dt {
+  font-size: 12px;
+  color: #777;
+  white-space: nowrap;
+}
+
+/* Section titles */
+.myacct-section-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #111;
+}
+
+.myacct-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.myacct-section-head .myacct-section-title {
+  margin: 0;
+}
+
+.myacct-view-all {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.myacct-view-all:hover {
+  text-decoration: underline;
+}
+
+/* Quick actions */
+.myacct-actions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.myacct-action-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 16px;
+  color: #111;
+  text-decoration: none;
+  transition: border-color 150ms ease-out;
+}
+
+.myacct-action-card:hover {
+  border-color: #111;
+}
+
+.myacct-action-icon {
+  flex: none;
+  color: #111;
+}
+
+.myacct-action-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.myacct-action-text strong {
+  font-size: 15px;
+}
+
+.myacct-action-text span {
+  font-size: 13px;
+  color: #666;
+}
+
+.myacct-action-arrow {
+  margin-left: auto;
+  flex: none;
+  color: #111;
+  font-weight: 700;
+}
+
+/* Activity */
+.myacct-activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.myacct-activity > li + li {
+  border-top: 1px solid #f0f0f0;
+}
+
+.myacct-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: #111;
+  text-decoration: none;
+}
+
+.myacct-activity-row:hover {
+  background: #fafafa;
+}
+
+.myacct-thumb {
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f5f5f5;
+  border: 1px solid #e5e5e5;
+}
+
+.myacct-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.myacct-thumb-mono {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-weight: 700;
+  color: #333;
+}
+
+.myacct-activity-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.myacct-activity-text strong {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.myacct-activity-text span {
+  font-size: 13px;
+  color: #666;
+}
+
+.myacct-activity-time {
+  margin-left: auto;
+  flex: none;
+  font-size: 13px;
+  color: #777;
+}
+
+/* Edit modal */
+.myacct-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.myacct-modal-head h2 {
+  margin: 0;
+}
+
+.myacct-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16rem;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.myacct-preview {
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  justify-items: center;
+  text-align: center;
+}
+
+.myacct-preview h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #111;
+}
+
+.myacct-preview-name {
+  margin: 0;
+  font-weight: 700;
+  color: #111;
+}
+
+.myacct-preview-facts {
+  margin: 8px 0 0;
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.myacct-preview-facts > div {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.myacct-preview-facts dt {
+  color: #777;
+}
+
+.myacct-preview-facts dd {
+  margin: 0;
+  color: #111;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1024px) {
+  .myacct-layout {
+    grid-template-columns: 1fr;
+  }
+  .myacct-sidebar {
+    position: static;
+  }
+  .myacct-nav-list {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+  }
+  .myacct-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .myacct-summary {
+    grid-template-columns: 1fr;
+  }
+  .myacct-side {
+    justify-items: start;
+  }
+  .myacct-stat {
+    text-align: left;
+  }
+  .myacct-modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .myacct-body {
+    padding: 24px 16px 0;
+  }
+  .myacct-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .myacct-actions {
+    grid-template-columns: 1fr;
+  }
+  .myacct-activity-time {
+    display: none;
+  }
+}
+
+.myacct-soon {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid #e5e5e5;
+  border-radius: 999px;
+  background: #f5f5f5;
+  color: #777;
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+/* ---------- My Account visual finalization (scoped, monochrome) ---------- */
+
+.myacct h1,
+.myacct h2 {
+  font-family: var(--ce-font-sans);
+}
+
+.myacct .ce-btn--primary {
+  background: #111;
+  border-color: #000;
+  color: #fff;
+}
+
+.myacct .ce-btn--primary:hover:not(:disabled) {
+  background: #333;
+  border-color: #000;
+}
+
+.myacct .ce-ok {
+  color: #111;
+}
+
+.myacct-divider {
+  border: none;
+  border-top: 1px solid #e5e5e5;
+  margin: 0;
+}
+
+@media (min-width: 1025px) {
+  .myacct-stat + .myacct-stat {
+    border-left: 1px solid #eee;
+    padding-left: 16px;
+  }
+}
+
+/* ---------- My Listings (myacct-*, monochrome) ---------- */
+
+.myacct-head--row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.myacct-head--row .ce-btn {
+  flex: none;
+}
+
+.myacct-stats--row {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.myacct-stat-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 16px;
+  display: grid;
+  gap: 4px;
+}
+
+.myacct-stat-card dd {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111;
+}
+
+.myacct-stat-card dt {
+  font-size: 12px;
+  color: #777;
+}
+
+.myacct-toolbar {
+  display: grid;
+  gap: 12px;
+}
+
+.myacct-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.myacct-tab {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  padding: 6px 14px;
+  min-height: 2.25rem;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--ce-font-sans);
+  cursor: pointer;
+}
+
+.myacct-tab:hover {
+  background: #f5f5f5;
+  color: #000;
+}
+
+.myacct-tab.is-active {
+  background: #111;
+  border-color: #000;
+  color: #fff;
+}
+
+.myacct-toolbar-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.myacct-search {
+  flex: 1;
+  min-width: min(100%, 16rem);
+}
+
+.myacct-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #333;
+  white-space: nowrap;
+}
+
+.myacct-sort select {
+  min-height: 2.75rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  font-size: 14px;
+}
+
+.myacct-listings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.myacct-listings > li + li {
+  border-top: 1px solid #f0f0f0;
+}
+
+.myacct-listing-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.myacct-thumb--lg {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.myacct-listing-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.myacct-listing-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 15px;
+  color: #111;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.myacct-listing-main .ce-small {
+  margin: 2px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.myacct-listing-price {
+  margin: 0;
+  flex: none;
+  font-weight: 700;
+  font-size: 15px;
+  color: #111;
+  white-space: nowrap;
+}
+
+.myacct-status {
+  flex: none;
+  border: 1px solid #111;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #111;
+  background: #fff;
+  white-space: nowrap;
+}
+
+.myacct-listing-actions {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.myacct-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+@media (max-width: 1024px) {
+  .myacct-listing-row {
+    flex-wrap: wrap;
+  }
+  .myacct-listing-actions {
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .myacct-stats--row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .myacct-search {
+    flex-basis: 100%;
+  }
+  .myacct-listing-price {
+    flex-basis: 100%;
+  }
+}
+
+/* ---------- My Purchases (myacct-*, monochrome) ---------- */
+
+.myacct-orders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.myacct-order-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.myacct-order-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.myacct-order-id {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #111;
+}
+
+.myacct-order-date {
+  font-size: 13px;
+  color: #777;
+  white-space: nowrap;
+}
+
+.myacct-order-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.myacct-view-order {
+  flex: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.myacct-view-order:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1024px) {
+  .myacct-order-body {
+    flex-wrap: wrap;
+  }
+  .myacct-view-order {
+    flex-basis: 100%;
+  }
+}
+
+/* ---------- Saved Items grid (myacct-*, monochrome) ---------- */
+
+.myacct-saved-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.myacct-saved-cell {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+@media (max-width: 1024px) {
+  .myacct-saved-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .myacct-saved-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Account Settings rows (myacct-*, monochrome) ---------- */
+
+.myacct-set-list {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.myacct-set-list > div + div {
+  border-top: 1px solid #f0f0f0;
+}
+
+.myacct-set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.myacct-set-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.myacct-set-text strong {
+  font-size: 15px;
+  color: #111;
+}
+
+.myacct-set-text > span {
+  font-size: 14px;
+  color: #111;
+  overflow-wrap: anywhere;
+}
+
+.myacct-readonly {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #777;
+  white-space: nowrap;
+}
+
+.myacct-set-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.myacct-set-profile .myacct-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.125rem;
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .myacct-set-row {
+    flex-wrap: wrap;
+  }
+}

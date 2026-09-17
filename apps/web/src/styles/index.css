@@ -19,6 +19,8 @@
 @import "./components/state.css";
 @import "./components/commerce.css";
 @import "./marketplace.css";
+@import "./buy.css";
+@import "./footer.css";
 @import "./landing.css";
 @import "./home.css";
 @import "./offers.css";

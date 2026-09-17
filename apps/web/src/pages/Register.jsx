@@ -4,6 +4,7 @@ import { describeAuthError, useAuth } from "../auth/AuthContext.jsx";
 import { apiFetch, ApiError } from "../api/client.js";
 import { login } from "../auth/auth.js";
 import { takePostLoginRedirect } from "../auth/auth.js";
+import { ROUTES } from "../config/routes.js";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -25,6 +26,9 @@ export default function RegisterPage() {
     setBusy(true);
     setError(null);
     try {
+      // register() returns the backend registration response and creates
+      // NO session: accounts start PENDING_VERIFICATION, so the
+      // verification step below must complete before entering.
       const reg = await register(email.trim(), password);
       // Phase 8: accounts start PENDING_VERIFICATION. V1 has no email
       // delivery, so the API returns the verification token directly —
@@ -145,7 +149,7 @@ export default function RegisterPage() {
         </button>
         <p className="muted">
           Already have an account? <a href="#/login">Log in</a> ·{" "}
-          <a href="#/">Back to marketplace</a>
+          <a href={ROUTES.buy}>Back to marketplace</a>
         </p>
       </form>
     </div>

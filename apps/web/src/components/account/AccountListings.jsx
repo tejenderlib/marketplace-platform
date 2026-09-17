@@ -11,8 +11,7 @@ import { EmptyState, ErrorState, LoadingState } from "../ui/States.jsx";
 
 /**
  * My Listings workspace view: a compact live summary of the seller's own
- * listings. Full management (edit, submit, archive, images, wizard) stays
- * in the existing Seller Hub — linked, not duplicated.
+ * listings. New listings are created in the Sell wizard (#/sell).
  */
 export default function AccountListings() {
   const { authFetch } = useAuth();
@@ -79,7 +78,7 @@ export default function AccountListings() {
         <p className="ce-small ce-muted">Showing {state.items.length} of {state.total}.</p>
       )}
       <div>
-        <Button variant="ghost" size="sm" href="#/sell">Manage in Seller Hub</Button>
+        <Button variant="ghost" size="sm" href="#/sell">Go to Sell</Button>
       </div>
     </section>
   );

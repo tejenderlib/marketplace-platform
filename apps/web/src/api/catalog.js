@@ -1,4 +1,4 @@
-import { apiFetch } from "./client.js";
+import { API_BASE, apiFetch } from "./client.js";
 import { formatPrice } from "../data/listings.js";
 
 function params(query) {
@@ -18,8 +18,8 @@ export function fetchCategories() {
 }
 
 /** GET /api/v1/catalog/listings with backend filtering + pagination (public). */
-export function fetchListings({ q, category_id, sale_type, seller_id, status = "ACTIVE", limit = 12, offset = 0 } = {}) {
-  return apiFetch(`/catalog/listings${params({ q, category_id, sale_type, seller_id, status, limit, offset })}`);
+export function fetchListings({ q, category_id, sale_type, condition, min_price, max_price, seller_id, status = "ACTIVE", limit = 12, offset = 0 } = {}) {
+  return apiFetch(`/catalog/listings${params({ q, category_id, sale_type, condition, min_price, max_price, seller_id, status, limit, offset })}`);
 }
 
 /** GET /api/v1/users/{user_id}/public-profile (public). */
@@ -30,6 +30,11 @@ export function fetchPublicProfile(userId) {
 /** GET /api/v1/catalog/listings/{id} (public). */
 export function fetchListing(id) {
   return apiFetch(`/catalog/listings/${id}`);
+}
+
+/** Public content URL for a listing image (visibility enforced server-side). */
+export function imageContentUrl(listingId, imageId) {
+  return `${API_BASE}/catalog/listings/${listingId}/images/${imageId}/content`;
 }
 
 /**

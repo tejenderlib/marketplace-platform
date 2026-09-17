@@ -1,76 +1,107 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { IMAGE_TYPES, MAX_IMAGE_BYTES } from "./shared.js";
+import { IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_PHOTOS, orderedImages } from "./shared.js";
+import PhotoDropzone from "./PhotoDropzone.jsx";
+import PhotoThumb from "./PhotoThumb.jsx";
 import Button from "../ui/Button.jsx";
-import { EmptyState, Notice } from "../ui/States.jsx";
+import { EmptyState } from "../ui/States.jsx";
 
-const EMPTY_REF = {
-  storage_key: "",
-  content_type: "image/jpeg",
-  byte_size: "",
-  width: "",
-  height: "",
-  alt_text: "",
-};
+const ACCEPT_HINT = IMAGE_TYPES.map((type) => type.split("/")[1].toUpperCase()).join(", ");
+const MAX_MB = Math.round(MAX_IMAGE_BYTES / 1024 / 1024);
+const MAX_MB_LABEL = `${MAX_MB}MB`;
 
 /**
- * Step 3: image REFERENCE management against the real metadata-only API.
- * V1 accepts no file bytes, so this UI registers storage references
- * honestly (and says so) instead of faking an upload. Logic unchanged.
+ * Images step: drag-drop/file-picker upload against the byte-upload API,
+ * thumbnail grid with cover badge, preview selection, reorder + remove.
+ * Props-compatible with the previous render; adds optional
+ * selectedId/onSelect for the preview card. Client pre-checks mirror the
+ * server policy (server stays authoritative).
  */
-export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd, onUpdate, onDelete }) {
-  const [ref, setRef] = useState(EMPTY_REF);
+export default function ImagesStep({
+  draftId,
+  images,
+  busy,
+  selectedId,
+  onSelect,
+  onEnsureDraft,
+  onUpload,
+  onUpdate,
+  onDelete,
+}) {
+  const [altText, setAltText] = useState("");
   const [localError, setLocalError] = useState(null);
+  const [pending, setPending] = useState([]);
+  const pendingUrls = useRef([]);
 
-  function set(key, value) {
-    setRef((prev) => ({ ...prev, [key]: value }));
+  const ordered = orderedImages(images);
+  const coverId = ordered.find((img) => img.is_primary)?.id ?? ordered[0]?.id ?? null;
+  const selected = selectedId ?? coverId;
+
+  // Revoke any leftover local preview URLs on unmount (per-file revoke
+  // after each upload handles the normal path).
+  useEffect(
+    () => () => {
+      pendingUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      pendingUrls.current = [];
+    },
+    [],
+  );
+
+  function checkFile(file) {
+    if (file.type && !IMAGE_TYPES.includes(file.type)) {
+      return `“${file.name}” is not supported. Allowed: ${ACCEPT_HINT}.`;
+    }
+    if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
+      return `“${file.name}” must be smaller than ${MAX_MB_LABEL}.`;
+    }
+    return null;
   }
 
-  async function handleAdd(event) {
-    event.preventDefault();
+  async function handleFiles(files) {
     setLocalError(null);
-    if (!ref.storage_key.trim()) {
-      setLocalError("Enter the storage key or reference for this image.");
+    const list = Array.from(files ?? []);
+    if (list.length === 0) return;
+    const room = MAX_PHOTOS - ordered.length - pending.length;
+    if (room <= 0) {
+      setLocalError(`Maximum ${MAX_PHOTOS} photos per listing. Remove one to add another.`);
       return;
     }
-    const bytes = Number(ref.byte_size);
-    if (!Number.isFinite(bytes) || bytes <= 0 || bytes > MAX_IMAGE_BYTES) {
-      setLocalError("Byte size must be between 1 and 10485760 (10 MiB).");
-      return;
+    const accepted = list.slice(0, room);
+    const skipped = [];
+    if (list.length > room) {
+      setLocalError(`Only ${room} more photo${room === 1 ? "" : "s"} fit (maximum ${MAX_PHOTOS}).`);
     }
-    const body = {
-      storage_key: ref.storage_key.trim(),
-      content_type: ref.content_type,
-      byte_size: Math.round(bytes),
-      width: ref.width === "" ? null : Math.max(1, Math.round(Number(ref.width) || 0)) || null,
-      height: ref.height === "" ? null : Math.max(1, Math.round(Number(ref.height) || 0)) || null,
-      alt_text: ref.alt_text.trim() ? ref.alt_text.trim() : null,
-      is_primary: images.length === 0,
-    };
-    const ok = await onAdd(body);
-    if (ok) setRef(EMPTY_REF);
+    for (const file of accepted) {
+      const problem = checkFile(file);
+      if (problem) {
+        setLocalError(problem);
+        continue;
+      }
+      const url = URL.createObjectURL(file);
+      pendingUrls.current.push(url);
+      const key = `${url}`;
+      setPending((prev) => [...prev, { key, url, name: file.name }]);
+      // Shared alt text applies to every file in one batch.
+      const ok = await onUpload(file, altText.trim() ? altText.trim() : null);
+      setPending((prev) => prev.filter((item) => item.key !== key));
+      pendingUrls.current = pendingUrls.current.filter((item) => item !== url);
+      URL.revokeObjectURL(url);
+      if (!ok) {
+        skipped.push(file.name);
+      }
+    }
+    if (skipped.length > 0) {
+      setLocalError(
+        `${skipped.length} photo${skipped.length === 1 ? "" : "s"} could not be uploaded (${skipped.join(", ")}). Check the notice above and retry.`,
+      );
+    } else {
+      setAltText("");
+    }
   }
 
-  if (!draftId) {
-    return (
-      <div className="ce-form">
-        <EmptyState
-          title="Save your draft first"
-          hint="Image references attach to a saved draft."
-          action={
-            <Button variant="primary" disabled={busy} onClick={onEnsureDraft}>
-              {busy ? "Saving…" : "Save Draft"}
-            </Button>
-          }
-        />
-      </div>
-    );
-  }
-
-  const maxOrder = images.reduce((max, img) => Math.max(max, img.sort_order ?? 0), 0);
+  const maxOrder = ordered.reduce((max, img) => Math.max(max, img.sort_order ?? 0), 0);
 
   async function move(image, direction) {
-    const ordered = [...images].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     const index = ordered.findIndex((img) => img.id === image.id);
     const other = ordered[index + direction];
     if (!other) return;
@@ -86,155 +117,97 @@ export default function ImagesStep({ draftId, images, busy, onEnsureDraft, onAdd
     await onUpdate(image.id, { sort_order: other.sort_order ?? 0 });
   }
 
-  return (
-    <div className="ce-form">
-      <Notice tone="warning">
-        Reference images already stored under your object-store key. File upload is not part of
-        the V1 API — nothing here uploads bytes.
-      </Notice>
+  if (!draftId) {
+    return (
+      <div className="ce-form">
+        <EmptyState
+          title="Save your draft first"
+          hint="Images attach to a saved draft."
+          action={
+            <Button variant="primary" disabled={busy} onClick={onEnsureDraft}>
+              {busy ? "Saving…" : "Save Draft"}
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
-      {images.length === 0 ? (
-        <p className="ce-small ce-muted">No images yet. Listings with photos sell faster.</p>
+  return (
+    <div className="sell-photos">
+      <PhotoDropzone disabled={busy} hintId="sell-photo-hint" onFiles={handleFiles} />
+      <p className="ce-small ce-muted" id="sell-photo-hint">
+        You can add up to {MAX_PHOTOS} photos. {ACCEPT_HINT}. Max {MAX_MB_LABEL} per photo.
+      </p>
+
+      <label className="ce-field">
+        <span>Alt text for new photos (optional)</span>
+        <input
+          type="text"
+          value={altText}
+          maxLength={255}
+          disabled={busy}
+          onChange={(event) => setAltText(event.target.value)}
+          placeholder="Describe the photo for screen readers"
+        />
+      </label>
+
+      {localError && (
+        <p className="ce-error" role="alert">
+          {localError}
+        </p>
+      )}
+
+      {ordered.length === 0 && pending.length === 0 ? (
+        <div className="sell-photos-empty" role="status">
+          <p className="ce-small ce-muted">
+            No photos yet. Listings with clear photos sell faster — add your first photo above.
+          </p>
+        </div>
       ) : (
-        <ul className="ce-image-list">
-          {[...images]
-            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-            .map((image, index, ordered) => (
-              <li key={image.id} className="ce-image-item">
-                <div>
-                  <p className="ce-image-key">{image.storage_key}</p>
-                  <p className="ce-small ce-muted">
-                    {image.content_type} · {Number(image.byte_size).toLocaleString("en-IN")} bytes
-                    {image.alt_text ? ` · “${image.alt_text}”` : ""}
-                  </p>
-                </div>
-                <span>
-                  {image.is_primary ? (
-                    <span className="ce-pill ce-pill--success">Primary</span>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => onUpdate(image.id, { is_primary: true })}
-                    >
-                      Set primary
-                    </Button>
-                  )}
-                </span>
-                <div className="ce-image-actions">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={busy || index === 0}
-                    onClick={() => move(image, -1)}
-                    aria-label={`Move ${image.storage_key} earlier`}
-                  >
-                    ↑
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={busy || index === ordered.length - 1}
-                    onClick={() => move(image, 1)}
-                    aria-label={`Move ${image.storage_key} later`}
-                  >
-                    ↓
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => onDelete(image.id)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </li>
-            ))}
+        <ul className="sell-thumbs" aria-label="Uploaded photos">
+          {ordered.map((image, index) => (
+            <PhotoThumb
+              key={image.id}
+              listingId={draftId}
+              image={image}
+              index={index}
+              isCover={image.id === coverId}
+              selected={selected === image.id}
+              busy={busy}
+              onSelect={() => onSelect?.(image.id)}
+              onSetCover={() => onUpdate(image.id, { is_primary: true })}
+              onRemove={() => onDelete(image.id)}
+              onMove={(direction) => move(image, direction)}
+              canMovePrev={index > 0}
+              canMoveNext={index < ordered.length - 1}
+            />
+          ))}
+          {pending.map((item) => (
+            <li key={item.key} className="sell-thumb is-uploading" aria-label={`Uploading ${item.name}`}>
+              <span className="sell-thumb-main">
+                <img src={item.url} alt={`Uploading ${item.name}`} className="sell-thumb-img" />
+                <span className="ce-pill sell-thumb-cover">Uploading…</span>
+              </span>
+            </li>
+          ))}
+          {ordered.length + pending.length < MAX_PHOTOS && (
+            <li className="sell-thumb sell-add" aria-hidden="true">
+              <span className="sell-add-tile">+</span>
+            </li>
+          )}
         </ul>
       )}
 
-      <form onSubmit={handleAdd} className="ce-form">
-        <h3 className="ce-h3">Add image reference</h3>
-        <label className="ce-field">
-          <span>
-            Storage key <span aria-hidden="true">*</span>
-          </span>
-          <input
-            type="text"
-            value={ref.storage_key}
-            maxLength={2000}
-            onChange={(event) => set("storage_key", event.target.value)}
-            placeholder="e.g. listings/abc123/photo-1.jpg"
-          />
-        </label>
-        <div className="ce-form-row">
-          <label className="ce-field">
-            <span>Content type</span>
-            <select value={ref.content_type} onChange={(event) => set("content_type", event.target.value)}>
-              {IMAGE_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="ce-field">
-            <span>
-              Size (bytes) <span aria-hidden="true">*</span>
-            </span>
-            <input
-              type="number"
-              min="1"
-              max={MAX_IMAGE_BYTES}
-              value={ref.byte_size}
-              onChange={(event) => set("byte_size", event.target.value)}
-              placeholder="e.g. 245000"
-            />
-          </label>
-        </div>
-        <div className="ce-form-row">
-          <label className="ce-field">
-            <span>Width (px) (optional)</span>
-            <input
-              type="number"
-              min="1"
-              value={ref.width}
-              onChange={(event) => set("width", event.target.value)}
-            />
-          </label>
-          <label className="ce-field">
-            <span>Height (px) (optional)</span>
-            <input
-              type="number"
-              min="1"
-              value={ref.height}
-              onChange={(event) => set("height", event.target.value)}
-            />
-          </label>
-        </div>
-        <label className="ce-field">
-          <span>Alt text (optional)</span>
-          <input
-            type="text"
-            value={ref.alt_text}
-            maxLength={255}
-            onChange={(event) => set("alt_text", event.target.value)}
-            placeholder="Describe the photo for screen readers"
-          />
-        </label>
-        {localError && (
-          <p className="ce-error" role="alert">
-            {localError}
-          </p>
-        )}
-        <div>
-          <Button variant="primary" type="submit" disabled={busy}>
-            {busy ? "Adding…" : "Add Reference"}
-          </Button>
-        </div>
-      </form>
+      <div className="sell-tips">
+        <h3 className="ce-h3">Tips for great photos</h3>
+        <ul className="ce-small ce-muted">
+          <li>Use good lighting and avoid dark or blurry photos.</li>
+          <li>Show the item from multiple angles.</li>
+          <li>Include close-ups of important details.</li>
+          <li>Avoid stock photos or images from the internet.</li>
+        </ul>
+      </div>
     </div>
   );
 }

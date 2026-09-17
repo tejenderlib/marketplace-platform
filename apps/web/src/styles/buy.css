@@ -1,0 +1,562 @@
+/* Phase 3 BUY marketplace: strict monochrome (black / white / gray).
+   Own `buy-*` namespace. The shared SiteHeader + listing cards keep
+   their existing theme; everything introduced here is neutral-only. */
+
+.buy-page {
+  background: #ffffff;
+  color: #0a0a0a;
+}
+
+/* Full-width route body: the buy marketplace breaks out of the narrow
+   centered application container and uses the desktop viewport. */
+.buy-route-body {
+  width: 100%;
+}
+
+/* ---------- Monochrome header (buy route only) ----------
+   Reused SiteHeader keeps its functionality; only its teal/green
+   accents are neutralized here. Scoped to .buy-route so the detail
+   route and every other surface render exactly as before. */
+
+.buy-route .ce-masthead {
+  background: rgb(255 255 255 / 0.96);
+  border-bottom: 1px solid #e2e2de;
+}
+
+.buy-route .ce-brand-mark {
+  background: #0a0a0a;
+  color: #ffffff;
+}
+
+.buy-route .ce-brand-name {
+  color: #0a0a0a;
+}
+
+.buy-route .ce-masthead-pill {
+  max-width: none;
+}
+
+.buy-route .ce-sheet {
+  background: #ffffff;
+  border-color: #e2e2de;
+}
+
+.buy-route .ce-nav-link {
+  color: #2b2b28;
+}
+
+.buy-route .ce-nav-link:hover {
+  color: #0a0a0a;
+  background: #f0f0ee;
+}
+
+.buy-route .ce-search {
+  border-color: #d4d4d0;
+}
+
+.buy-route .ce-search:focus-within {
+  border-color: #0a0a0a;
+  outline-color: #0a0a0a;
+}
+
+.buy-route .ce-btn--primary {
+  background: #0a0a0a;
+  border-color: #0a0a0a;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.buy-route .ce-btn--primary:hover,
+.buy-route .ce-btn--primary:active {
+  background: #2b2b28;
+  border-color: #2b2b28;
+}
+
+.buy-route .ce-btn--secondary {
+  background: #ffffff;
+  border-color: #d4d4d0;
+  color: #0a0a0a;
+  box-shadow: none;
+}
+
+.buy-route .ce-btn--secondary:hover {
+  background: #f0f0ee;
+  border-color: #0a0a0a;
+  color: #0a0a0a;
+}
+
+.buy-route .ce-btn--ghost {
+  color: #0a0a0a;
+  box-shadow: none;
+}
+
+.buy-route .ce-btn--ghost:hover {
+  background: #f0f0ee;
+}
+
+.buy-route .bell-btn,
+.buy-route .account-trigger,
+.buy-route .ce-menu-btn {
+  border-color: #d4d4d0;
+  background: #ffffff;
+  color: #0a0a0a;
+}
+
+.buy-route .bell-btn:hover,
+.buy-route .account-trigger:hover,
+.buy-route .ce-menu-btn:hover {
+  border-color: #0a0a0a;
+}
+
+.buy-route .account-avatar {
+  background: #0a0a0a;
+}
+
+.buy-route .ce-catalog-heading:hover,
+.buy-route .ce-catalog-link:hover,
+.buy-route .ce-sheet-link--strong {
+  color: #0a0a0a;
+}
+
+/* ---------- Hero banner ---------- */
+
+.buy-hero {
+  background: #0a0a0a;
+  color: #ffffff;
+}
+
+.buy-hero-inner {
+  margin-inline: auto;
+  padding: 2rem 2.5rem;
+  display: grid;
+  gap: 2rem;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .buy-hero-inner {
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+}
+
+.buy-hero-copy {
+  display: grid;
+  gap: 0.8rem;
+  justify-items: start;
+}
+
+.buy-hero-eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #b5b5b0;
+}
+
+.buy-hero-title {
+  margin: 0;
+  font-size: clamp(2.5rem, 1.2rem + 3.5vw, 3.75rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 750;
+  text-wrap: balance;
+}
+
+.buy-hero-sub {
+  margin: 0;
+  font-size: 1.125rem;
+  color: #d7d7d2;
+  letter-spacing: 0.04em;
+}
+
+.buy-hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+  padding: 0.8rem 1.75rem;
+  min-height: 3rem;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0a0a0a;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background 160ms ease-out, transform 280ms cubic-bezier(0.22, 0.61, 0.21, 1);
+}
+
+.buy-hero-cta:hover {
+  background: #e4e4e1;
+  transform: translateY(-1px);
+}
+
+.buy-hero-cta:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.buy-hero-art {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .buy-hero-art {
+    display: block;
+  }
+}
+
+.buy-hero-art svg {
+  width: 100%;
+  max-width: 26rem;
+  max-height: 13.75rem;
+  height: auto;
+  display: block;
+  margin-inline-start: auto;
+}
+
+/* ---------- Category discovery zone: nav + ONE dynamic panel ---------- */
+
+.mega-zone {
+  background: #ffffff;
+  border-bottom: 1px solid #ececea;
+}
+
+.mega-nav {
+  margin-inline: auto;
+  padding: 0 2.5rem;
+}
+
+.mega-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  overflow-x: auto;
+}
+
+.mega-nav-link {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.9rem 1rem;
+  min-height: 3.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #2b2b28;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 150ms ease-out, border-color 150ms ease-out, background 150ms ease-out;
+}
+
+.mega-nav-link:hover {
+  color: #0a0a0a;
+  background: #f7f7f5;
+}
+
+.mega-nav-link.is-active {
+  color: #0a0a0a;
+  font-weight: 700;
+  border-bottom-color: #0a0a0a;
+}
+
+.mega-nav-link:focus-visible,
+.mega-cat:focus-visible,
+.mega-link:focus-visible,
+.mega-promo-cta:focus-visible,
+.mega-home-link:focus-visible {
+  outline: 2px solid #0a0a0a;
+  outline-offset: 2px;
+}
+
+.mega-panel {
+  background: #0a0a0a;
+  color: #f7f7f5;
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr) 17rem;
+  gap: 2.5rem;
+  padding: 2.5rem;
+  animation: mega-fade 200ms ease-out;
+}
+
+@keyframes mega-fade {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+
+.mega-panel-kicker {
+  margin: 0 0 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #9a9a95;
+}
+
+.mega-panel-cats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.mega-cat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  min-height: 2.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #d7d7d2;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mega-cat:hover {
+  background: #1b1b1b;
+  color: #ffffff;
+}
+
+.mega-cat.is-active {
+  background: #ffffff;
+  color: #0a0a0a;
+  font-weight: 700;
+}
+
+.mega-panel-tagline {
+  margin: 0 0 1.5rem;
+  color: #b5b5b0;
+  font-size: 0.9375rem;
+}
+
+.mega-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 1.75rem 2rem;
+}
+
+.mega-section h3 {
+  margin: 0 0 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.mega-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.mega-link {
+  background: none;
+  border: none;
+  padding: 0.35rem 0;
+  min-height: 2rem;
+  width: 100%;
+  text-align: left;
+  font-size: 0.875rem;
+  color: #b5b5b0;
+  cursor: pointer;
+}
+
+.mega-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.mega-panel-right {
+  border: 1px solid #2a2a2a;
+  border-radius: 0.75rem;
+  background: #131313;
+  padding: 1.5rem;
+  align-self: start;
+}
+
+.mega-promo-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.mega-promo-sub {
+  margin: 0.5rem 0 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #b5b5b0;
+}
+
+.mega-promo-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 999px;
+  border: 1px solid #ffffff;
+  background: #ffffff;
+  color: #0a0a0a;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease-out, color 150ms ease-out;
+}
+
+.mega-promo-cta:hover {
+  background: transparent;
+  color: #ffffff;
+}
+
+.mega-panel-home {
+  grid-column: 1 / -1;
+  border-top: 1px solid #2a2a2a;
+  padding-top: 1.25rem;
+}
+
+.mega-home-link {
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  color: #9a9a95;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mega-home-link:hover {
+  color: #ffffff;
+}
+
+/* ---------- Layout: full-width listings (sidebar removed) ---------- */
+
+.buy-layout {
+  margin-inline: auto;
+  padding: 2.5rem 2.5rem 5rem;
+}
+
+/* Product grid density: 4 columns desktop, 2 tablet, 1 mobile.
+   Scoped to the buy page so every other grid in the app is untouched. */
+.buy-page .ce-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+/* (Filter panel styles retired with the sidebar; backend filtering is
+   driven by search, sale-type, and mega-menu explore.) */
+
+/* Sort indicator: reflects the catalogue's fixed newest-first ordering
+   (no sort parameter exists in the API contract, so no fake options). */
+.buy-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.buy-sort strong {
+  font-weight: 700;
+  color: #0a0a0a;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1024px) {
+  .mega-nav {
+    padding: 0 1.5rem;
+  }
+
+  .mega-panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.75rem;
+    padding: 2rem 1.5rem;
+  }
+
+  .mega-panel-cats {
+    grid-auto-flow: column;
+    grid-template-rows: repeat(2, auto);
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .mega-cat {
+    white-space: nowrap;
+  }
+
+  .buy-layout {
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  .buy-hero-inner {
+    padding: 3.5rem 1.5rem;
+  }
+
+  .buy-page .ce-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .mega-nav {
+    padding: 0 1rem;
+  }
+
+  .mega-panel {
+    padding: 1.5rem 1rem;
+    gap: 1.5rem;
+  }
+
+  .mega-sections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  .buy-hero-inner {
+    padding: 2.75rem 1.5rem;
+  }
+
+  .buy-page .ce-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .buy-hero-cta {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .buy-layout {
+    padding: 1.5rem 1.5rem 3rem;
+    gap: 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mega-panel {
+    animation: none;
+  }
+  .buy-hero-cta,
+  .buy-hero-cta:hover {
+    transform: none;
+  }
+}

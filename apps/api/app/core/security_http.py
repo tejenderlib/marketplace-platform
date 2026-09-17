@@ -62,23 +62,32 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
 
 
 class BodySizeLimitMiddleware(BaseHTTPMiddleware):
-    """Reject request bodies above the configured ceiling (413)."""
+    """Reject request bodies above the configured ceiling (413).
+
+    The listing-image upload endpoint (``.../images/upload``) accepts
+    real image bytes up to the image policy ceiling
+    (``MAX_IMAGE_BYTES``) and enforces that bound itself, so it is
+    exempted here; every other route keeps the JSON-body ceiling.
+    """
+
+    _EXEMPT_SUFFIX = "/images/upload"
 
     async def dispatch(self, request: Request, call_next):
-        limit = get_settings().max_request_body_bytes
-        content_length = request.headers.get("content-length")
-        if content_length is not None:
-            try:
-                if int(content_length) > limit:
+        if not request.url.path.endswith(self._EXEMPT_SUFFIX):
+            limit = get_settings().max_request_body_bytes
+            content_length = request.headers.get("content-length")
+            if content_length is not None:
+                try:
+                    if int(content_length) > limit:
+                        return JSONResponse(
+                            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                            content={"detail": "Request body is too large."},
+                        )
+                except ValueError:
                     return JSONResponse(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        content={"detail": "Request body is too large."},
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={"detail": "Invalid Content-Length header."},
                     )
-            except ValueError:
-                return JSONResponse(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    content={"detail": "Invalid Content-Length header."},
-                )
         return await call_next(request)
 
 

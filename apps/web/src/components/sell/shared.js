@@ -13,6 +13,23 @@ export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
+/** Client-side photo cap for the sell flow (server has no count cap;
+ *  the API stays authoritative — this only keeps the UI truthful). */
+export const MAX_PHOTOS = 10;
+
+/** Sort-order ascending (stable by id for ties). */
+export function orderedImages(list) {
+  return [...(list ?? [])].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.id).localeCompare(String(b.id)),
+  );
+}
+
+/** Cover = explicit primary, else first by sort order, else null. */
+export function coverImage(list) {
+  const ordered = orderedImages(list);
+  return ordered.find((img) => img.is_primary) ?? ordered[0] ?? null;
+}
+
 export function toMinor(rupees) {
   const value = Number(String(rupees ?? "").replace(/[^0-9.]/g, ""));
   if (!Number.isFinite(value) || value <= 0) return null;
